@@ -1,0 +1,114 @@
+---
+title: 'Visual Guide to Quantization'
+description: 'Learn how quantization reduces model size while maintaining performance through detailed visual explanations'
+---
+
+## Overview
+
+Quantization is one of the most powerful techniques for making large language models more accessible and efficient. By reducing the precision of model weights from 32-bit or 16-bit floating point numbers to lower bit representations (8-bit, 4-bit, or even lower), we can dramatically reduce model size and memory requirements while maintaining most of the model's performance.
+
+<Note>
+This guide is part of the bonus material for **Hands-On Large Language Models**. It extends the book's content through the same visual and illustrative style you're already familiar with.
+</Note>
+
+## Why Quantization Matters
+
+Modern LLMs can have billions of parameters, making them resource-intensive to deploy and run. Quantization addresses several critical challenges:
+
+- **Memory Efficiency**: Reduce model size by 2-8x, enabling deployment on consumer hardware
+- **Inference Speed**: Lower precision arithmetic can be computed faster on modern hardware
+- **Cost Reduction**: Smaller models require less expensive infrastructure
+- **Accessibility**: Run powerful models on devices with limited resources
+
+## What You'll Learn
+
+The visual guide covers quantization comprehensively through detailed illustrations:
+
+<CardGroup cols={2}>
+  <Card title="Fundamentals" icon="chart-simple">
+    Understanding precision, floating point representation, and how quantization works at the mathematical level
+  </Card>
+  
+  <Card title="Techniques" icon="wrench">
+    Post-training quantization (PTQ), quantization-aware training (QAT), and various quantization schemes
+  </Card>
+  
+  <Card title="Trade-offs" icon="scale-balanced">
+    Balancing model size reduction with accuracy preservation and understanding perplexity changes
+  </Card>
+  
+  <Card title="Practical Methods" icon="code">
+    GPTQ, GGUF, AWQ, and other popular quantization formats used in production
+  </Card>
+</CardGroup>
+
+## Visual Guide
+
+<Card 
+  title="A Visual Guide to Quantization" 
+  icon="arrow-up-right-from-square"
+  href="https://newsletter.maartengrootendorst.com/p/a-visual-guide-to-quantization"
+>
+  Read the full visual guide with detailed diagrams and illustrations explaining quantization from first principles to advanced techniques.
+</Card>
+
+## Related Book Chapters
+
+The visual guide builds upon concepts introduced in the book:
+
+- **Chapter 5: Text Generation** - Understanding model inference and where quantization applies
+- **Chapter 8: Customizing LLMs** - Model optimization and deployment strategies
+- **Chapter 9: Deploying LLMs** - Practical deployment considerations including quantization
+
+## Key Concepts Covered
+
+### Numerical Precision
+- Floating point representation (FP32, FP16, BF16)
+- Integer quantization (INT8, INT4)
+- Fixed-point arithmetic
+- Dynamic range and precision trade-offs
+
+### Quantization Methods
+- **Symmetric vs Asymmetric Quantization**: Different approaches to mapping values
+- **Per-tensor vs Per-channel**: Granularity of quantization
+- **Dynamic vs Static**: When quantization parameters are determined
+- **Mixed Precision**: Using different precisions for different layers
+
+### Advanced Techniques
+- **GPTQ**: Accurate post-training quantization for generative models
+- **GGUF**: Efficient format for CPU inference (used by llama.cpp)
+- **AWQ**: Activation-aware weight quantization
+- **SmoothQuant**: Smoothing activation outliers for better quantization
+
+## Practical Applications
+
+After reading the visual guide, you'll understand:
+
+1. **How to choose** the right quantization method for your use case
+2. **When to use** 8-bit vs 4-bit vs other precisions
+3. **How to evaluate** quantized model performance
+4. **How to implement** quantization using popular libraries (Hugging Face, llama.cpp, etc.)
+
+<Info>
+Quantization is essential knowledge for deploying LLMs in production. Most production systems use some form of quantization to balance performance and resource requirements.
+</Info>
+
+## Additional Resources
+
+- [bitsandbytes](https://github.com/TimDettmers/bitsandbytes) - 8-bit optimizers and quantization
+- [GPTQ](https://github.com/IST-DASLab/gptq) - Post-training quantization implementation
+- [llama.cpp](https://github.com/ggerganov/llama.cpp) - Efficient inference with GGUF format
+- [AutoGPTQ](https://github.com/PanQiWei/AutoGPTQ) - Easy-to-use GPTQ implementation
+- [Quanto](https://github.com/huggingface/quanto) - PyTorch quantization toolkit from Hugging Face
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Mixture of Experts" href="/advanced/mixture-of-experts">
+    Learn about MoE architectures that enable efficient scaling
+  </Card>
+  
+  <Card title="Reasoning LLMs" href="/advanced/reasoning-llms">
+    Explore how modern LLMs perform complex reasoning
+  </Card>
+</CardGroup>

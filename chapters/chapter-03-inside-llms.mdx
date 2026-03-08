@@ -1,0 +1,529 @@
+---
+title: "Chapter 3: Looking Inside Transformer LLMs"
+description: "An extensive look into the transformer architecture of generative LLMs and how they process information"
+---
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter03/Chapter%203%20-%20Looking%20Inside%20LLMs.ipynb)
+
+## Overview
+
+This chapter takes you inside the transformer architecture to understand how Large Language Models actually work. You'll learn about the model's internal layers, how it processes embeddings, the attention mechanism, and key optimizations like KV caching that make text generation efficient.
+
+<Note>
+This chapter requires a GPU for running examples. In Google Colab, go to **Runtime > Change runtime type > Hardware accelerator > GPU > GPU type > T4**.
+</Note>
+
+## Learning Objectives
+
+By the end of this chapter, you will:
+
+- Understand the transformer architecture and its components
+- Know how to inspect model layers and parameters
+- Learn how the language model head produces token probabilities
+- Understand key-value caching and why it matters
+- Be able to analyze model outputs and internal states
+
+## Setting Up
+
+Install the required dependencies:
+
+```bash
+pip install transformers>=4.41.2 accelerate>=0.31.0
+```
+
+## Loading the Model
+
+Let's load Phi-3 and examine its architecture:
+
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+
+# Load model and tokenizer
+tokenizer = AutoTokenizer.from_pretrained("microsoft/Phi-3-mini-4k-instruct")
+
+model = AutoModelForCausalLM.from_pretrained(
+    "microsoft/Phi-3-mini-4k-instruct",
+    device_map="cuda",
+    torch_dtype="auto",
+    trust_remote_code=False,
+)
+
+# Create a pipeline
+generator = pipeline(
+    "text-generation",
+    model=model,
+    tokenizer=tokenizer,
+    return_full_text=False,
+    max_new_tokens=50,
+    do_sample=False,
+)
+```
+
+## Model Architecture Overview
+
+Let's inspect the model's structure:
+
+```python
+print(model)
+```
+
+**Output:**
+```
+Phi3ForCausalLM(
+  (model): Phi3Model(
+    (embed_tokens): Embedding(32064, 3072, padding_idx=32000)
+    (embed_dropout): Dropout(p=0.0, inplace=False)
+    (layers): ModuleList(
+      (0-31): 32 x Phi3DecoderLayer(
+        (self_attn): Phi3Attention(
+          (o_proj): Linear(in_features=3072, out_features=3072, bias=False)
+          (qkv_proj): Linear(in_features=3072, out_features=9216, bias=False)
+          (rotary_emb): Phi3RotaryEmbedding()
+        )
+        (mlp): Phi3MLP(
+          (gate_up_proj): Linear(in_features=3072, out_features=16384, bias=False)
+          (down_proj): Linear(in_features=8192, out_features=3072, bias=False)
+          (activation_fn): SiLU()
+        )
+        (input_layernorm): Phi3RMSNorm()
+        (resid_attn_dropout): Dropout(p=0.0, inplace=False)
+        (resid_mlp_dropout): Dropout(p=0.0, inplace=False)
+        (post_attention_layernorm): Phi3RMSNorm()
+      )
+    )
+    (norm): Phi3RMSNorm()
+  )
+  (lm_head): Linear(in_features=3072, out_features=32064, bias=False)
+)
+```
+
+### Understanding the Architecture
+
+<Steps>
+  <Step title="Embedding Layer">
+    Converts token IDs (32,064 vocab) into 3,072-dimensional vectors
+  </Step>
+  
+  <Step title="Transformer Layers (32 layers)">
+    Each layer contains:
+    - **Self-attention**: Captures relationships between tokens
+    - **MLP (Feed-forward)**: Processes each position independently
+    - **Layer normalization**: Stabilizes training
+  </Step>
+  
+  <Step title="Language Model Head">
+    Projects the final hidden state (3,072 dims) back to vocabulary size (32,064) to produce logits
+  </Step>
+</Steps>
+
+## Key Components Explained
+
+### The Attention Mechanism
+
+The attention mechanism allows each token to "look at" other tokens in the sequence:
+
+<Accordion title="Query, Key, Value (QKV) Projections">
+```python
+(qkv_proj): Linear(in_features=3072, out_features=9216, bias=False)
+```
+
+This layer projects each token's embedding into three representations:
+- **Query (Q)**: What I'm looking for
+- **Key (K)**: What I have to offer  
+- **Value (V)**: The actual information I contain
+
+The output size is 9,216 = 3 × 3,072 (for Q, K, and V)
+</Accordion>
+
+<Accordion title="Output Projection">
+```python
+(o_proj): Linear(in_features=3072, out_features=3072, bias=False)
+```
+
+After attention scores are computed and applied to values, this layer transforms the result back to the hidden dimension.
+</Accordion>
+
+<Accordion title="Rotary Positional Embeddings">
+```python
+(rotary_emb): Phi3RotaryEmbedding()
+```
+
+Instead of adding positional information to embeddings, RoPE (Rotary Position Embedding) encodes position directly into the attention mechanism, giving the model better position awareness.
+</Accordion>
+
+### The Feed-Forward Network (MLP)
+
+Each transformer layer includes a position-wise feed-forward network:
+
+```python
+(mlp): Phi3MLP(
+  (gate_up_proj): Linear(in_features=3072, out_features=16384, bias=False)
+  (down_proj): Linear(in_features=8192, out_features=3072, bias=False)
+  (activation_fn): SiLU()
+)
+```
+
+<CardGroup cols={2}>
+  <Card title="Expansion" icon="expand">
+    First layer expands from 3,072 to 16,384 dimensions (5.3x larger!)
+  </Card>
+  
+  <Card title="Non-linearity" icon="wave-square">
+    SiLU (Swish) activation adds non-linear transformations
+  </Card>
+  
+  <Card title="Compression" icon="compress">
+    Second layer compresses back to 3,072 dimensions
+  </Card>
+  
+  <Card title="Knowledge Storage" icon="database">
+    These large intermediate dimensions store factual knowledge
+  </Card>
+</CardGroup>
+
+## The Inputs and Outputs of the Model
+
+Let's see what the model actually processes:
+
+```python
+prompt = "Write an email apologizing to Sarah for the tragic gardening mishap. Explain how it happened."
+
+output = generator(prompt)
+print(output[0]['generated_text'])
+```
+
+**Output:**
+```
+
+Solution 1:
+
+Subject: My Sincere Apologies for the Gardening Mishap
+
+
+Dear Sarah,
+
+
+I hope this message finds you well. I am writing to express my deep
+```
+
+### Examining Model Internals
+
+Let's process a simple prompt and inspect the internal representations:
+
+```python
+prompt = "The capital of France is"
+
+# Tokenize the input prompt
+input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to("cuda")
+
+# Get the output of the model before the lm_head
+model_output = model.model(input_ids)
+
+# Get the output of the lm_head
+lm_head_output = model.lm_head(model_output[0])
+```
+
+### Understanding the Shapes
+
+```python
+print(model_output[0].shape)
+# Output: torch.Size([1, 6, 3072])
+# [batch_size, sequence_length, hidden_dimension]
+
+print(lm_head_output.shape)  
+# Output: torch.Size([1, 6, 32064])
+# [batch_size, sequence_length, vocabulary_size]
+```
+
+<Tip>
+The model processes **all tokens in parallel**, producing a hidden state for each position. The language model head then converts each hidden state into a probability distribution over the entire vocabulary.
+</Tip>
+
+## From Logits to Tokens
+
+The final step is selecting the next token from the probability distribution:
+
+```python
+# Get the logits for the last position
+token_id = lm_head_output[0, -1].argmax(-1)
+
+# Decode the token
+next_token = tokenizer.decode(token_id)
+print(next_token)
+```
+
+**Output:**
+```
+Paris
+```
+
+Perfect! The model correctly predicts "Paris" as the next token.
+
+### Visualization of the Process
+
+```
+Input: "The capital of France is"
+         ↓ (tokenization)
+Token IDs: [1, 450, 7483, 310, 3444, 338]
+         ↓ (embedding layer)
+Embeddings: [batch=1, tokens=6, dim=3072]
+         ↓ (32 transformer layers)
+Hidden States: [batch=1, tokens=6, dim=3072]
+         ↓ (language model head)
+Logits: [batch=1, tokens=6, vocab=32064]
+         ↓ (argmax on last position)
+Next Token ID: 3681
+         ↓ (decode)
+Output: "Paris"
+```
+
+## Optimizing Generation with KV Caching
+
+Text generation requires generating one token at a time. Without optimization, this would be extremely slow!
+
+### The Problem
+
+```python
+prompt = "Write a very long email apologizing to Sarah for the tragic gardening mishap. Explain how it happened."
+
+input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to("cuda")
+```
+
+To generate 100 tokens without caching:
+- **Token 1**: Process all input tokens
+- **Token 2**: Process input + token 1
+- **Token 3**: Process input + token 1 + token 2
+- ...
+- **Token 100**: Process input + 99 generated tokens
+
+This leads to massive redundant computation!
+
+### The Solution: KV Caching
+
+The key insight: attention Keys and Values for previous tokens never change. We can cache them!
+
+<Steps>
+  <Step title="First Token">
+    Compute K and V for all input tokens, cache them
+  </Step>
+  
+  <Step title="Subsequent Tokens">
+    Only compute K and V for the new token, reuse cached values
+  </Step>
+  
+  <Step title="Massive Speedup">
+    Eliminate redundant computation
+  </Step>
+</Steps>
+
+### Benchmarking the Difference
+
+**With caching enabled:**
+```python
+%%timeit -n 1
+generation_output = model.generate(
+  input_ids=input_ids,
+  max_new_tokens=100,
+  use_cache=True
+)
+# Result: 6.66 s ± 2.22 s per loop
+```
+
+**With caching disabled:**
+```python
+%%timeit -n 1
+generation_output = model.generate(
+  input_ids=input_ids,
+  max_new_tokens=100,
+  use_cache=False
+)
+# Result: 21.9 s ± 94.6 ms per loop
+```
+
+<Note>
+**KV caching provides a 3.3x speedup!** This optimization is critical for making LLMs practical for real-time applications.
+</Note>
+
+## Memory Considerations
+
+While KV caching speeds up generation, it requires memory:
+
+```
+KV Cache Size = 2 × num_layers × batch_size × max_length × hidden_dim × precision
+
+For Phi-3 generating 1000 tokens:
+= 2 × 32 × 1 × 1000 × 3072 × 2 bytes (float16)
+= ~375 MB per sequence
+```
+
+<Warning>
+For large models and long sequences, KV cache can consume significant VRAM. This is why context length is often limited in production systems.
+</Warning>
+
+## Model Parameters
+
+Let's count the parameters in Phi-3:
+
+<AccordionGroup>
+  <Accordion title="Embedding Layer">
+    ```
+    32,064 (vocab) × 3,072 (dim) = 98.4M parameters
+    ```
+  </Accordion>
+
+  <Accordion title="Each Transformer Layer">
+    - Attention QKV: 3,072 × 9,216 = 28.3M
+    - Attention output: 3,072 × 3,072 = 9.4M
+    - MLP gate/up: 3,072 × 16,384 = 50.3M
+    - MLP down: 8,192 × 3,072 = 25.2M
+    
+    **Total per layer**: ~113M parameters
+  </Accordion>
+
+  <Accordion title="All 32 Layers">
+    ```
+    32 layers × 113M = 3.6B parameters
+    ```
+  </Accordion>
+
+  <Accordion title="LM Head">
+    ```
+    3,072 (dim) × 32,064 (vocab) = 98.4M parameters
+    ```
+  </Accordion>
+
+  <Accordion title="Grand Total">
+    ```
+    98.4M (embedding) + 3.6B (layers) + 98.4M (lm_head) 
+    ≈ 3.8 billion parameters
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Understanding Attention Patterns
+
+Different layers learn different patterns:
+
+<CardGroup cols={2}>
+  <Card title="Early Layers" icon="1">
+    Focus on syntax and local patterns (nearby words)
+  </Card>
+  
+  <Card title="Middle Layers" icon="2">
+    Capture semantic relationships and facts
+  </Card>
+  
+  <Card title="Late Layers" icon="3">
+    Handle high-level reasoning and task-specific patterns
+  </Card>
+  
+  <Card title="Final Layer" icon="4">
+    Prepares information for token prediction
+  </Card>
+</CardGroup>
+
+## Advanced Topics
+
+### Temperature and Sampling
+
+When `do_sample=True`, the model doesn't just pick the highest probability token:
+
+```python
+generator = pipeline(
+    "text-generation",
+    model=model,
+    tokenizer=tokenizer,
+    do_sample=True,
+    temperature=0.7,  # Lower = more focused, Higher = more creative
+    top_p=0.9,        # Nucleus sampling
+    top_k=50,         # Top-k sampling
+)
+```
+
+<Tip>
+**Temperature** scales the logits before applying softmax:
+- Temperature = 0.1: Very focused, deterministic
+- Temperature = 1.0: Normal distribution
+- Temperature = 2.0: Very random, creative
+</Tip>
+
+### Batch Processing
+
+The model can process multiple sequences simultaneously:
+
+```python
+prompts = [
+    "The capital of France is",
+    "The capital of Japan is",
+    "The capital of Brazil is"
+]
+
+inputs = tokenizer(prompts, return_tensors="pt", padding=True).to("cuda")
+outputs = model.generate(**inputs, max_new_tokens=5)
+
+for i, output in enumerate(outputs):
+    print(f"{prompts[i]} {tokenizer.decode(output[len(inputs.input_ids[i]):])}")
+```
+
+## Practical Applications
+
+Understanding the internals enables advanced techniques:
+
+<CardGroup cols={2}>
+  <Card title="Prompt Engineering" icon="message">
+    Knowing attention mechanisms helps craft better prompts
+  </Card>
+  
+  <Card title="Fine-tuning" icon="wrench">
+    Target specific layers for parameter-efficient training
+  </Card>
+  
+  <Card title="Inference Optimization" icon="gauge-high">
+    Optimize KV cache and batch sizes
+  </Card>
+  
+  <Card title="Model Compression" icon="compress-arrows-alt">
+    Prune layers or reduce dimensions strategically
+  </Card>
+</CardGroup>
+
+## Performance Tips
+
+<Steps>
+  <Step title="Use Flash Attention">
+    Install flash-attention for 2-3x speedup in attention computation
+  </Step>
+  
+  <Step title="Enable torch.compile()">
+    PyTorch 2.0+ can compile the model for faster execution
+  </Step>
+  
+  <Step title="Optimize Batch Size">
+    Larger batches improve GPU utilization but require more memory
+  </Step>
+  
+  <Step title="Use Mixed Precision">
+    FP16 or BF16 reduces memory and increases speed with minimal quality loss
+  </Step>
+</Steps>
+
+## Next Steps
+
+Now that you understand how LLMs work internally, you're ready to apply them to real-world tasks!
+
+<CardGroup cols={2}>
+  <Card title="Chapter 4: Text Classification" icon="tags" href="/chapters/chapter-04-text-classification">
+    Learn how to use LLMs for classification tasks
+  </Card>
+  
+  <Card title="Chapter 5: Text Clustering" icon="layer-group" href="/chapters/chapter-05-clustering-topics">
+    Explore unsupervised learning with embeddings
+  </Card>
+</CardGroup>
+
+## Additional Resources
+
+- [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/)
+- [Attention Is All You Need (Original Paper)](https://arxiv.org/abs/1706.03762)
+- [Hugging Face Model Hub](https://huggingface.co/models)
+- [PyTorch Performance Tuning Guide](https://pytorch.org/tutorials/recipes/recipes/tuning_guide.html)

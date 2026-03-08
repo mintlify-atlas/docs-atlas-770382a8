@@ -1,0 +1,156 @@
+---
+title: Contributing to the Repository
+description: How to contribute code, report issues, and improve the Hands-On Large Language Models repository
+---
+
+# Contributing to the Repository
+
+We welcome contributions to the **Hands-On Large Language Models** repository! Whether you've found a bug, want to improve the code examples, or have suggestions for enhancements, your contributions help make this resource better for everyone.
+
+## GitHub Repository
+
+<Card title="HandsOnLLM/Hands-On-Large-Language-Models" icon="github" href="https://github.com/HandsOnLLM/Hands-On-Large-Language-Models">
+  Visit the repository on GitHub
+</Card>
+
+## Ways to Contribute
+
+<CardGroup cols={2}>
+  <Card title="Report Issues" icon="bug" href="https://github.com/HandsOnLLM/Hands-On-Large-Language-Models/issues">
+    Found a bug or error in the code? Let us know!
+  </Card>
+  <Card title="Submit Pull Requests" icon="code-pull-request" href="https://github.com/HandsOnLLM/Hands-On-Large-Language-Models/pulls">
+    Fix bugs, improve code, or add enhancements
+  </Card>
+  <Card title="Improve Documentation" icon="file-lines">
+    Suggest clarifications or additional explanations
+  </Card>
+  <Card title="Share Your Projects" icon="share-nodes">
+    Built something with the book? Share it with the community!
+  </Card>
+</CardGroup>
+
+## Reporting Issues
+
+If you encounter problems with the code examples, please open an issue on GitHub:
+
+1. **Check existing issues** - Someone may have already reported the same problem
+2. **Provide details** - Include:
+   - Which chapter and notebook you're working with
+   - The error message or unexpected behavior
+   - Your environment (Python version, GPU/CPU, platform)
+   - Steps to reproduce the issue
+3. **Be specific** - The more information you provide, the easier it is to help
+
+<Note>
+All code examples were primarily built and tested using Google Colab with T4 GPUs. Results may vary slightly on different platforms or Python versions.
+</Note>
+
+## Submitting Pull Requests
+
+We appreciate code contributions! Here's how to submit a pull request:
+
+### Before You Start
+
+- **Discuss major changes** - For significant modifications, open an issue first to discuss your proposal
+- **Test your changes** - Ensure your code works on Google Colab (the primary platform)
+- **Follow the existing style** - Match the coding style and formatting of the repository
+
+### Pull Request Process
+
+1. **Fork the repository** and create a new branch for your changes
+2. **Make your changes** - Fix bugs, improve code, or add enhancements
+3. **Test thoroughly** - Verify your changes work as expected
+4. **Commit with clear messages** - Describe what you changed and why
+5. **Submit a pull request** - Explain your changes and link any related issues
+
+<Accordion title="Example: Fixing a Bug">
+```bash
+# Fork the repo and clone it
+git clone https://github.com/YOUR-USERNAME/Hands-On-Large-Language-Models.git
+cd Hands-On-Large-Language-Models
+
+# Create a new branch
+git checkout -b fix-chapter3-memory-error
+
+# Make your changes
+# ... edit the notebook ...
+
+# Commit your changes
+git add .
+git commit -m "Fix memory error in Chapter 3 attention calculation"
+
+# Push to your fork
+git push origin fix-chapter3-memory-error
+
+# Open a pull request on GitHub
+```
+</Accordion>
+
+## Code of Conduct
+
+### Be Respectful
+
+- Treat all contributors with respect and kindness
+- Welcome newcomers and help them learn
+- Accept constructive criticism gracefully
+- Focus on what's best for the community
+
+### Be Collaborative
+
+- Share knowledge and resources
+- Give credit where it's due
+- Build on each other's work
+- Help others succeed
+
+### Be Professional
+
+- Keep discussions focused and on-topic
+- Provide constructive feedback
+- Avoid personal attacks or harassment
+- Respect differing viewpoints and experiences
+
+## Running Code Locally
+
+While Google Colab is recommended, you can run the code locally:
+
+<Accordion title="Setting Up Your Environment">
+The repository includes setup instructions in the `.setup/` folder:
+
+- **Quick start guide** - Basic package installation
+- **Conda environment** - Complete setup including conda and PyTorch
+
+Visit the [Setup Guide](https://github.com/HandsOnLLM/Hands-On-Large-Language-Models/tree/main/.setup) on GitHub for detailed instructions.
+</Accordion>
+
+<Note>
+Depending on your OS, Python version, and dependencies, your results might differ slightly from the book examples. However, they should be similar.
+</Note>
+
+## Connect with the Authors
+
+<CardGroup cols={2}>
+  <Card title="Jay Alammar" icon="linkedin" href="https://www.linkedin.com/in/jalammar/">
+    Connect with Jay on LinkedIn
+  </Card>
+  <Card title="Maarten Grootendorst" icon="linkedin" href="https://www.linkedin.com/in/mgrootendorst/">
+    Connect with Maarten on LinkedIn
+  </Card>
+</CardGroup>
+
+## Additional Resources
+
+Looking for more content? Check out:
+
+- [Advanced Topics](/advanced/quantization) - Bonus visual guides on cutting-edge topics
+- [DeepLearning.AI Course](https://www.deeplearning.ai/short-courses/how-transformer-llms-work/?utm_campaign=handsonllm-launch&utm_medium=partner) - Complementary course material
+
+## Questions?
+
+If you have questions about contributing or need help getting started:
+
+1. Check the [GitHub Discussions](https://github.com/HandsOnLLM/Hands-On-Large-Language-Models/discussions) (if enabled)
+2. Open an issue with the "question" label
+3. Reach out to the authors on LinkedIn
+
+Thank you for contributing to making this resource better for everyone!

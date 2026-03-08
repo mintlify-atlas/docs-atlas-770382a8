@@ -1,0 +1,626 @@
+---
+title: 'Chapter 5: Text Clustering and Topic Modeling'
+description: 'Clustering documents using a wide variety of language models'
+---
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter05/Chapter%205%20-%20Text%20Clustering%20and%20Topic%20Modeling.ipynb)
+
+## Overview
+
+While text classification requires labeled data, **text clustering** and **topic modeling** discover patterns and themes in unlabeled document collections. This chapter explores how to group similar documents together and extract meaningful topics using modern embedding-based approaches.
+
+You'll learn how to build a complete clustering pipeline using embeddings, dimensionality reduction, and clustering algorithms, then extend it to topic modeling with **BERTopic** - a modular framework that combines the best of classical and modern NLP techniques.
+
+### What You'll Learn
+
+<Steps>
+  <Step title="Document Embeddings">
+    Convert text into high-quality vector representations using sentence transformers
+  </Step>
+  <Step title="Dimensionality Reduction">
+    Use UMAP to reduce embedding dimensions while preserving semantic structure
+  </Step>
+  <Step title="Clustering Algorithms">
+    Apply HDBSCAN to discover document clusters of varying densities
+  </Step>
+  <Step title="Topic Modeling with BERTopic">
+    Extract interpretable topics using c-TF-IDF and representation models
+  </Step>
+  <Step title="Visualization & Exploration">
+    Visualize document clusters and topic relationships interactively
+  </Step>
+</Steps>
+
+## Use Cases
+
+Text clustering and topic modeling power numerous applications:
+
+- **Research Analysis**: Discover themes in academic papers, patents, or scientific literature
+- **Customer Feedback**: Identify common themes in product reviews or support tickets
+- **Content Organization**: Automatically categorize news articles, blog posts, or documents
+- **Social Media Monitoring**: Track trending topics in tweets, forums, or discussions
+- **Document Discovery**: Enable exploratory search in large text collections
+- **Knowledge Management**: Organize and navigate corporate knowledge bases
+
+## Dataset: ArXiv NLP Papers
+
+We'll work with abstracts from **ArXiv papers** in the Computation and Language (cs.CL) category - real research papers from the NLP community.
+
+```python
+# Load data from huggingface
+from datasets import load_dataset
+dataset = load_dataset("maartengr/arxiv_nlp")["train"]
+
+# Extract metadata
+abstracts = list(dataset["Abstracts"])
+titles = list(dataset["Titles"])
+```
+
+This dataset contains **44,949 abstracts** from NLP research papers, making it ideal for discovering research themes and trends.
+
+## A Common Pipeline for Text Clustering
+
+Text clustering typically follows a three-step pipeline:
+
+<Steps>
+  <Step title="1. Embed Documents">
+    Convert text into dense vector representations
+  </Step>
+  <Step title="2. Reduce Dimensionality">
+    Reduce high-dimensional embeddings to lower dimensions for clustering
+  </Step>
+  <Step title="3. Cluster Documents">
+    Group similar documents using clustering algorithms
+  </Step>
+</Steps>
+
+### Step 1: Embedding Documents
+
+First, we convert each abstract into a numerical vector that captures its semantic meaning.
+
+```python
+from sentence_transformers import SentenceTransformer
+
+# Create an embedding for each abstract
+embedding_model = SentenceTransformer('thenlper/gte-small')
+embeddings = embedding_model.encode(abstracts, show_progress_bar=True)
+```
+
+**Check the dimensions:**
+```python
+embeddings.shape  # Output: (44949, 384)
+```
+
+Each of the 44,949 abstracts is now represented as a **384-dimensional vector**.
+
+<Note>
+We use `thenlper/gte-small`, a compact but powerful embedding model. It balances quality and speed, making it suitable for large document collections.
+</Note>
+
+### Step 2: Reducing the Dimensionality of Embeddings
+
+High-dimensional embeddings (384 dimensions) can be difficult for clustering algorithms. We use **UMAP** (Uniform Manifold Approximation and Projection) to reduce dimensions while preserving semantic relationships.
+
+```python
+from umap import UMAP
+
+# We reduce the input embeddings from 384 dimensions to 5 dimensions
+umap_model = UMAP(
+    n_components=5,
+    min_dist=0.0,
+    metric='cosine',
+    random_state=42
+)
+reduced_embeddings = umap_model.fit_transform(embeddings)
+```
+
+<Tip>
+**Why 5 dimensions?** This strikes a balance:
+- More than 2-3 dimensions preserves more semantic information
+- Fewer than 10-20 dimensions makes clustering more effective
+- We can reduce to 2 dimensions later for visualization
+</Tip>
+
+### Step 3: Cluster the Reduced Embeddings
+
+Now we apply **HDBSCAN** (Hierarchical Density-Based Spatial Clustering of Applications with Noise) to discover clusters.
+
+```python
+from hdbscan import HDBSCAN
+
+# We fit the model and extract the clusters
+hdbscan_model = HDBSCAN(
+    min_cluster_size=50,
+    metric='euclidean',
+    cluster_selection_method='eom'
+).fit(reduced_embeddings)
+clusters = hdbscan_model.labels_
+
+# How many clusters did we generate?
+len(set(clusters))  # Output: 156
+```
+
+We discovered **156 distinct clusters** in the NLP research literature!
+
+<Note>
+**Why HDBSCAN?**
+- Doesn't require specifying the number of clusters upfront
+- Can identify clusters of varying densities
+- Automatically identifies outliers (labeled as -1)
+- Works well with the output of UMAP
+</Note>
+
+### Inspecting the Clusters
+
+Let's manually examine the first three documents in cluster 0:
+
+```python
+import numpy as np
+
+# Print first three documents in cluster 0
+cluster = 0
+for index in np.where(clusters==cluster)[0][:3]:
+    print(abstracts[index][:300] + "... \n")
+```
+
+**Output:**
+```
+This works aims to design a statistical machine translation from English text
+to American Sign Language (ASL). The system is based on Moses tool with some
+modifications and the results are synthesized through a 3D avatar for
+interpretation. First, we translate the input text to gloss, a written fo...
+
+Researches on signed languages still strongly dissociate linguistic issues
+related on phonological and phonetic aspects, and gesture studies for
+recognition and synthesis purposes. This paper focuses on the imbrication of
+motion and meaning for the analysis, synthesis and evaluation of sign lang...
+
+Modern computational linguistic software cannot produce important aspects of
+sign language translation. Using some researches we deduce that the majority of
+automatic sign language translation systems ignore many aspects when they
+generate animation; therefore the interpretation lost the truth inf...
+```
+
+All three abstracts are about **sign language translation** - the clustering worked!
+
+### Visualizing Clusters
+
+To visualize our clusters, we reduce the embeddings to 2 dimensions:
+
+```python
+import pandas as pd
+
+# Reduce 384-dimensional embeddings to 2 dimensions for easier visualization
+reduced_embeddings = UMAP(
+    n_components=2,
+    min_dist=0.0,
+    metric='cosine',
+    random_state=42
+).fit_transform(embeddings)
+
+# Create dataframe
+df = pd.DataFrame(reduced_embeddings, columns=["x", "y"])
+df["title"] = titles
+df["cluster"] = [str(c) for c in clusters]
+
+# Select outliers and non-outliers (clusters)
+clusters_df = df.loc[df.cluster != "-1", :]
+outliers_df = df.loc[df.cluster == "-1", :]
+```
+
+**Create a static plot:**
+
+```python
+import matplotlib.pyplot as plt
+
+# Plot outliers and non-outliers separately
+plt.scatter(outliers_df.x, outliers_df.y, alpha=0.05, s=2, c="grey")
+plt.scatter(
+    clusters_df.x, clusters_df.y, c=clusters_df.cluster.astype(int),
+    alpha=0.6, s=2, cmap='tab20b'
+)
+plt.axis('off')
+```
+
+The visualization shows clear clusters of related papers, with outliers in grey!
+
+<Note>
+Outliers (cluster -1) represent papers that don't fit well into any cluster. This is normal and often represents either very unique papers or papers that bridge multiple topics.
+</Note>
+
+## From Text Clustering to Topic Modeling
+
+While clustering groups similar documents, **topic modeling** goes further by:
+1. Identifying what makes each cluster unique
+2. Extracting representative keywords
+3. Providing interpretable topic descriptions
+
+### BERTopic: A Modular Topic Modeling Framework
+
+**BERTopic** combines our clustering pipeline with topic representation techniques to create interpretable topics.
+
+```python
+from bertopic import BERTopic
+
+# Train our model with our previously defined models
+topic_model = BERTopic(
+    embedding_model=embedding_model,
+    umap_model=umap_model,
+    hdbscan_model=hdbscan_model,
+    verbose=True
+).fit(abstracts, embeddings)
+```
+
+**Training output:**
+```
+2024-04-24 10:38:31 - BERTopic - Dimensionality - Fitting the dimensionality reduction algorithm
+2024-04-24 10:39:22 - BERTopic - Dimensionality - Completed ✓
+2024-04-24 10:39:22 - BERTopic - Cluster - Start clustering the reduced embeddings
+2024-04-24 10:39:24 - BERTopic - Cluster - Completed ✓
+2024-04-24 10:39:24 - BERTopic - Representation - Extracting topics from clusters using representation models.
+2024-04-24 10:39:34 - BERTopic - Representation - Completed ✓
+```
+
+<Tip>
+**Modularity is key**: BERTopic allows you to swap out any component:
+- Use different embedding models (OpenAI, Cohere, local models)
+- Try different dimensionality reduction techniques
+- Experiment with clustering algorithms
+- Apply various representation models
+</Tip>
+
+### Exploring Topics
+
+View all topics with their counts and representations:
+
+```python
+topic_model.get_topic_info()
+```
+
+**Sample output:**
+
+| Topic | Count | Name | Representation |
+|-------|-------|------|----------------|
+| -1 | 14520 | -1_the_of_and_to | [the, of, and, to, in, we, that, language...] |
+| 0 | 2290 | 0_speech_asr_recognition_end | [speech, asr, recognition, end, acoustic...] |
+| 1 | 1403 | 1_medical_clinical_biomedical_patient | [medical, clinical, biomedical, patient...] |
+| 2 | 1156 | 2_sentiment_aspect_analysis_reviews | [sentiment, aspect, analysis, reviews...] |
+| 3 | 986 | 3_translation_nmt_machine_neural | [translation, nmt, machine, neural...] |
+
+The model discovered **156 topics** covering different areas of NLP research!
+
+### Examining Topic Keywords
+
+Get the top 10 keywords for a specific topic with their c-TF-IDF weights:
+
+```python
+topic_model.get_topic(0)
+```
+
+**Output:**
+```python
+[
+    ('speech', 0.0282),
+    ('asr', 0.0190),
+    ('recognition', 0.0135),
+    ('end', 0.0098),
+    ('acoustic', 0.0095),
+    ('speaker', 0.0069),
+    ('audio', 0.0068),
+    ('the', 0.0063),
+    ('error', 0.0063),
+    ('automatic', 0.0063)
+]
+```
+
+Topic 0 is clearly about **speech recognition and ASR** (Automatic Speech Recognition)!
+
+<Note>
+**c-TF-IDF** (class-based TF-IDF) is like TF-IDF but treats each cluster as a single document. It identifies words that are frequent within a topic but rare across other topics, making topic representations more distinctive.
+</Note>
+
+### Searching for Topics
+
+Find topics related to a search term:
+
+```python
+topic_model.find_topics("topic modeling")
+```
+
+**Output:**
+```python
+([22, -1, 1, 47, 32], [0.955, 0.912, 0.907, 0.907, 0.905])
+```
+
+Topic 22 has 95.5% similarity to "topic modeling"! Let's inspect it:
+
+```python
+topic_model.get_topic(22)
+```
+
+**Output:**
+```python
+[
+    ('topic', 0.0663),
+    ('topics', 0.0353),
+    ('lda', 0.0164),
+    ('latent', 0.0134),
+    ('document', 0.0130),
+    ('documents', 0.0124),
+    ('modeling', 0.0120),
+    ('dirichlet', 0.0101),
+    ('word', 0.0085),
+    ('allocation', 0.0079)
+]
+```
+
+This topic includes classic topic modeling terms like LDA (Latent Dirichlet Allocation)!
+
+**Verify the BERTopic paper is in this topic:**
+
+```python
+topic_model.topics_[titles.index('BERTopic: Neural topic modeling with a class-based TF-IDF procedure')]
+# Output: 22
+```
+
+Perfect! The BERTopic paper itself was correctly assigned to the topic modeling topic.
+
+## Visualizations
+
+BERTopic provides rich interactive visualizations to explore topics.
+
+### Visualize Documents
+
+Create an interactive plot showing all documents and their topics:
+
+```python
+# Visualize topics and documents
+fig = topic_model.visualize_documents(
+    titles,
+    reduced_embeddings=reduced_embeddings,
+    width=1200,
+    hide_annotations=True
+)
+
+# Update fonts of legend for easier visualization
+fig.update_layout(font=dict(size=16))
+```
+
+This creates an interactive scatter plot where you can:
+- Hover over points to see document titles
+- Zoom into specific regions
+- Filter by topic
+- Explore the relationship between different topics
+
+### Additional Visualizations
+
+<CodeGroup>
+
+```python Barchart
+# Visualize barchart with ranked keywords
+topic_model.visualize_barchart()
+```
+
+```python Heatmap
+# Visualize relationships between topics
+topic_model.visualize_heatmap(n_clusters=30)
+```
+
+```python Hierarchy
+# Visualize the potential hierarchical structure of topics
+topic_model.visualize_hierarchy()
+```
+
+</CodeGroup>
+
+The **hierarchy visualization** is particularly useful - it shows how topics can be merged into higher-level themes, revealing the hierarchical structure of your document collection.
+
+## Representation Models
+
+BERTopic's modularity shines when using **representation models** to improve topic descriptions beyond c-TF-IDF.
+
+### Available Representation Models
+
+<Accordion title="KeyBERT-Inspired">
+Uses embeddings to select the most representative keywords for each topic.
+
+```python
+from bertopic.representation import KeyBERTInspired
+
+representation_model = KeyBERTInspired()
+topic_model.update_topics(abstracts, representation_model=representation_model)
+```
+</Accordion>
+
+<Accordion title="MaximalMarginalRelevance">
+Selects diverse keywords that are relevant but not redundant.
+
+```python
+from bertopic.representation import MaximalMarginalRelevance
+
+representation_model = MaximalMarginalRelevance(diversity=0.3)
+topic_model.update_topics(abstracts, representation_model=representation_model)
+```
+</Accordion>
+
+<Accordion title="OpenAI / Cohere">
+Uses large language models to generate descriptive topic labels.
+
+```python
+from bertopic.representation import OpenAI
+
+representation_model = OpenAI(
+    model="gpt-4",
+    prompt="Generate a concise topic label for the following keywords: [KEYWORDS]"
+)
+topic_model.update_topics(abstracts, representation_model=representation_model)
+```
+</Accordion>
+
+<Accordion title="LangChain">
+Integrates with LangChain for custom LLM-based representations.
+
+```python
+from bertopic.representation import LangChain
+from langchain.chains import LLMChain
+
+representation_model = LangChain(chain)
+topic_model.update_topics(abstracts, representation_model=representation_model)
+```
+</Accordion>
+
+### Updating Topics After Training
+
+You can update topic representations **after** training, allowing quick iteration:
+
+```python
+from copy import deepcopy
+
+# Save original representations
+original_topics = deepcopy(topic_model.topic_representations_)
+
+# Update with a new representation model
+from bertopic.representation import KeyBERTInspired
+representation_model = KeyBERTInspired()
+topic_model.update_topics(
+    abstracts,
+    representation_model=representation_model
+)
+
+# Compare before and after
+def topic_differences(model, original_topics, nr_topics=5):
+    """Show the differences in topic representations between two models"""
+    for topic in range(nr_topics):
+        print(f"\n--- Topic {topic} ---")
+        print("Original:", [word for word, _ in original_topics[topic][:5]])
+        print("Updated:", [word for word, _ in model.get_topic(topic)[:5]])
+
+topic_differences(topic_model, original_topics)
+```
+
+<Tip>
+**Combine multiple representation models** for richer topic descriptions:
+
+```python
+from bertopic.representation import KeyBERTInspired, MaximalMarginalRelevance, OpenAI
+
+representation_models = [
+    KeyBERTInspired(),
+    MaximalMarginalRelevance(diversity=0.3),
+    OpenAI(model="gpt-3.5-turbo")
+]
+
+topic_model = BERTopic(representation_model=representation_models)
+```
+
+This creates multiple representations for each topic, giving you different perspectives!
+</Tip>
+
+## Practical Applications
+
+<Accordion title="Research Paper Organization">
+
+**Scenario**: A research lab has thousands of papers and wants to organize them by theme.
+
+**Solution**:
+1. Extract paper abstracts
+2. Generate embeddings and cluster using BERTopic
+3. Use OpenAI representation model for human-readable topic names
+4. Create interactive visualizations for exploration
+5. Build a search interface using topic assignments
+
+**Benefits**: Researchers can quickly find related papers, identify research gaps, and track field evolution.
+
+</Accordion>
+
+<Accordion title="Customer Feedback Analysis">
+
+**Scenario**: An e-commerce company receives thousands of product reviews daily.
+
+**Solution**:
+1. Collect review text
+2. Apply BERTopic to discover common themes
+3. Track topic prevalence over time
+4. Alert teams when new issues emerge (new topics)
+5. Generate automated reports on customer concerns
+
+**Benefits**: Product teams can prioritize improvements, customer service can proactively address issues, and executives get data-driven insights.
+
+</Accordion>
+
+<Accordion title="Content Recommendation">
+
+**Scenario**: A news website wants to recommend related articles.
+
+**Solution**:
+1. Model topics across all articles
+2. Assign new articles to topics in real-time
+3. Recommend articles from the same or related topics
+4. Use topic hierarchy for broader recommendations
+
+**Benefits**: Increased engagement, longer session times, and better content discovery.
+
+</Accordion>
+
+## Key Differences: Clustering vs Topic Modeling
+
+| Aspect | Text Clustering | Topic Modeling |
+|--------|----------------|----------------|
+| **Output** | Document groups | Document groups + topic descriptions |
+| **Interpretability** | Requires manual inspection | Automatic keyword extraction |
+| **Use Case** | Organization, deduplication | Analysis, exploration, search |
+| **Examples** | HDBSCAN, K-Means | LDA, NMF, BERTopic |
+| **Flexibility** | Group assignment | Group + representation |
+
+## Performance Considerations
+
+<Note>
+**Scalability Tips**:
+
+1. **Large datasets (>100K documents)**:
+   - Use approximate nearest neighbors for UMAP
+   - Consider batching embeddings
+   - Use `low_memory=True` in HDBSCAN
+
+2. **Speed optimization**:
+   - Use smaller embedding models (e.g., `all-MiniLM-L6-v2`)
+   - Pre-compute and save embeddings
+   - Reduce UMAP dimensions to 3-5 instead of 5-10
+
+3. **Quality improvement**:
+   - Use larger embedding models (e.g., `all-mpnet-base-v2`)
+   - Increase `min_cluster_size` for more coherent topics
+   - Experiment with different UMAP parameters
+</Note>
+
+## Key Takeaways
+
+<Steps>
+  <Step title="Embeddings are foundational">
+    High-quality embeddings are crucial for both clustering and topic modeling
+  </Step>
+  <Step title="Pipeline matters">
+    The combination of embedding → dimensionality reduction → clustering works well across domains
+  </Step>
+  <Step title="BERTopic is modular">
+    Swap components to customize for your specific use case
+  </Step>
+  <Step title="Representation models enhance topics">
+    Use LLMs or specialized models to generate better topic descriptions
+  </Step>
+  <Step title="Visualization aids understanding">
+    Interactive plots help explore and validate discovered topics
+  </Step>
+</Steps>
+
+## Next Steps
+
+Now that you understand text clustering and topic modeling, you can:
+- Apply these techniques to your own document collections
+- Experiment with different embedding models and parameters
+- Build search and recommendation systems using topics
+- Track topic evolution over time in dynamic corpora
+
+---
+
+**Try the notebook yourself**: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter05/Chapter%205%20-%20Text%20Clustering%20and%20Topic%20Modeling.ipynb)

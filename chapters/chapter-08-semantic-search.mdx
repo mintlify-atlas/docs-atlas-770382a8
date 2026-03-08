@@ -1,0 +1,357 @@
+---
+title: 'Chapter 8: Semantic Search and RAG'
+description: 'Exploring semantic search, vector databases, and retrieval-augmented generation for LLM applications'
+---
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter08/Chapter%208%20-%20Semantic%20Search.ipynb)
+
+Chapter 8 explores semantic search and retrieval-augmented generation (RAG), vital components for building LLM applications that can access and utilize external knowledge.
+
+## Overview
+
+Semantic search goes beyond keyword matching to understand the meaning and context of queries. When combined with large language models through RAG, it enables systems to provide accurate, grounded responses based on retrieved information.
+
+### Key Topics Covered
+
+- Dense retrieval with embeddings
+- Vector databases and search indices
+- Keyword search (BM25)
+- Reranking strategies
+- Retrieval-augmented generation (RAG)
+
+## Dense Retrieval
+
+Dense retrieval uses embedding models to convert text into vector representations, enabling semantic similarity search.
+
+### 1. Getting and Chunking Text
+
+```python
+import cohere
+
+# Initialize Cohere client
+api_key = 'YOUR_API_KEY'
+co = cohere.Client(api_key)
+
+# Sample text about Interstellar
+text = """
+Interstellar is a 2014 epic science fiction film co-written, directed, and produced by Christopher Nolan.
+It stars Matthew McConaughey, Anne Hathaway, Jessica Chastain, Bill Irwin, Ellen Burstyn, Matt Damon, and Michael Caine.
+Set in a dystopian future where humanity is struggling to survive, the film follows a group of astronauts who travel through a wormhole near Saturn in search of a new home for mankind.
+"""
+
+# Split into sentences
+texts = text.split('.')
+texts = [t.strip(' \n') for t in texts]
+```
+
+### 2. Creating Embeddings
+
+```python
+import numpy as np
+
+# Get embeddings using Cohere
+response = co.embed(
+    texts=texts,
+    input_type="search_document",
+).embeddings
+
+embeds = np.array(response)
+print(embeds.shape)  # (15, 4096)
+```
+
+<Note>
+Cohere's embedding model produces 4096-dimensional vectors. Different models produce different dimensionalities.
+</Note>
+
+### 3. Building a Search Index
+
+```python
+import faiss
+
+# Create FAISS index
+dim = embeds.shape[1]
+index = faiss.IndexFlatL2(dim)
+index.add(np.float32(embeds))
+```
+
+<Tip>
+FAISS (Facebook AI Similarity Search) is optimized for fast similarity search and clustering of dense vectors.
+</Tip>
+
+### 4. Searching the Index
+
+```python
+import pandas as pd
+
+def search(query, number_of_results=3):
+    # Get the query's embedding
+    query_embed = co.embed(
+        texts=[query],
+        input_type="search_query",
+    ).embeddings[0]
+    
+    # Retrieve nearest neighbors
+    distances, similar_item_ids = index.search(
+        np.float32([query_embed]), 
+        number_of_results
+    )
+    
+    # Format results
+    texts_np = np.array(texts)
+    results = pd.DataFrame(data={
+        'texts': texts_np[similar_item_ids[0]],
+        'distance': distances[0]
+    })
+    
+    print(f"Query:'{query}'\nNearest neighbors:")
+    return results
+
+# Example search
+query = "how precise was the science"
+results = search(query)
+```
+
+### Search Results
+
+| texts | distance |
+|-------|----------|
+| It has also received praise from many astronomers for its scientific accuracy... | 10757.38 |
+| Caltech theoretical physicist and 2017 Nobel laureate in Physics Kip Thorne... | 11566.13 |
+| Interstellar uses extensive practical and miniature effects... | 11922.83 |
+
+## Keyword Search with BM25
+
+While dense retrieval excels at semantic matching, keyword search remains valuable for exact matches and specific terms.
+
+```python
+from rank_bm25 import BM25Okapi
+from sklearn.feature_extraction import _stop_words
+import string
+
+def bm25_tokenizer(text):
+    tokenized_doc = []
+    for token in text.lower().split():
+        token = token.strip(string.punctuation)
+        
+        if len(token) > 0 and token not in _stop_words.ENGLISH_STOP_WORDS:
+            tokenized_doc.append(token)
+    return tokenized_doc
+
+# Build BM25 index
+from tqdm import tqdm
+
+tokenized_corpus = []
+for passage in tqdm(texts):
+    tokenized_corpus.append(bm25_tokenizer(passage))
+
+bm25 = BM25Okapi(tokenized_corpus)
+```
+
+### BM25 Search Function
+
+```python
+def keyword_search(query, top_k=3, num_candidates=15):
+    print("Input question:", query)
+    
+    # BM25 search (lexical search)
+    bm25_scores = bm25.get_scores(bm25_tokenizer(query))
+    top_n = np.argpartition(bm25_scores, -num_candidates)[-num_candidates:]
+    bm25_hits = [{'corpus_id': idx, 'score': bm25_scores[idx]} for idx in top_n]
+    bm25_hits = sorted(bm25_hits, key=lambda x: x['score'], reverse=True)
+    
+    print(f"Top-3 lexical search (BM25) hits")
+    for hit in bm25_hits[0:top_k]:
+        print("\t{:.3f}\t{}".format(
+            hit['score'], 
+            texts[hit['corpus_id']].replace("\n", " ")
+        ))
+```
+
+## Reranking
+
+Reranking refines initial search results by using more sophisticated models to reorder candidates.
+
+```python
+# Rerank search results
+query = "how precise was the science"
+results = co.rerank(
+    query=query, 
+    documents=texts, 
+    top_n=3, 
+    return_documents=True
+)
+
+# Display reranked results
+for idx, result in enumerate(results.results):
+    print(idx, result.relevance_score, result.document.text)
+```
+
+### Combined BM25 + Reranking
+
+```python
+def keyword_and_reranking_search(query, top_k=3, num_candidates=10):
+    print("Input question:", query)
+    
+    # BM25 search (lexical search)
+    bm25_scores = bm25.get_scores(bm25_tokenizer(query))
+    top_n = np.argpartition(bm25_scores, -num_candidates)[-num_candidates:]
+    bm25_hits = [{'corpus_id': idx, 'score': bm25_scores[idx]} for idx in top_n]
+    bm25_hits = sorted(bm25_hits, key=lambda x: x['score'], reverse=True)
+    
+    # Add re-ranking
+    docs = [texts[hit['corpus_id']] for hit in bm25_hits]
+    
+    print(f"\nTop-3 hits by rank-API ({len(bm25_hits)} BM25 hits re-ranked)")
+    results = co.rerank(query=query, documents=docs, top_n=top_k, return_documents=True)
+    for hit in results.results:
+        print("\t{:.3f}\t{}".format(
+            hit.relevance_score, 
+            hit.document.text.replace("\n", " ")
+        ))
+```
+
+## Retrieval-Augmented Generation (RAG)
+
+RAG combines retrieval systems with language models to generate informed, grounded responses.
+
+### Example: RAG with LLM API
+
+```python
+query = "income generated"
+
+# 1. Retrieval
+results = search(query)
+
+# 2. Grounded Generation
+docs_dict = [{'text': text} for text in results['texts']]
+response = co.chat(
+    message=query,
+    documents=docs_dict
+)
+
+print(response.text)
+# Output: "The film generated a worldwide gross of over $677 million, 
+#          or $773 million with subsequent re-releases."
+```
+
+<Note>
+The model automatically cites sources with `response.citations`, showing which parts of the response came from which documents.
+</Note>
+
+## RAG with Local Models
+
+Build a complete RAG pipeline using local models for full control and privacy.
+
+<Steps>
+  <Step title="Load the Generation Model">
+    ```python
+    from langchain import LlamaCpp
+
+    # Load a local LLM
+    llm = LlamaCpp(
+        model_path="Phi-3-mini-4k-instruct-q4.gguf",
+        n_gpu_layers=-1,
+        max_tokens=500,
+        n_ctx=2048,
+        seed=42,
+        verbose=False
+    )
+    ```
+  </Step>
+
+  <Step title="Load the Embedding Model">
+    ```python
+    from langchain.embeddings.huggingface import HuggingFaceEmbeddings
+
+    # Embedding model for text to numerical representations
+    embedding_model = HuggingFaceEmbeddings(
+        model_name='BAAI/bge-small-en-v1.5'
+    )
+    ```
+  </Step>
+
+  <Step title="Create Vector Database">
+    ```python
+    from langchain.vectorstores import FAISS
+
+    # Create a local vector database
+    db = FAISS.from_texts(texts, embedding_model)
+    ```
+  </Step>
+
+  <Step title="Build RAG Pipeline">
+    ```python
+    from langchain import PromptTemplate
+    from langchain.chains import RetrievalQA
+
+    # Create prompt template
+    template = """<|user|>
+    Relevant information:
+    {context}
+    
+    Provide a concise answer to the following question using the relevant information:
+    {question}<|end|>
+    <|assistant|>"""
+    
+    prompt = PromptTemplate(
+        template=template,
+        input_variables=["context", "question"]
+    )
+    
+    # RAG Pipeline
+    rag = RetrievalQA.from_chain_type(
+        llm=llm,
+        chain_type='stuff',
+        retriever=db.as_retriever(),
+        chain_type_kwargs={"prompt": prompt},
+        verbose=True
+    )
+    ```
+  </Step>
+
+  <Step title="Query the System">
+    ```python
+    # Ask a question
+    result = rag.invoke('Income generated')
+    
+    print(result['result'])
+    # Output: "Interstellar grossed over $677 million worldwide in 2014 
+    #          and had additional earnings from subsequent re-releases, 
+    #          totaling approximately $773 million."
+    ```
+  </Step>
+</Steps>
+
+## Key Takeaways
+
+<CardGroup cols={2}>
+  <Card title="Dense Retrieval" icon="vector-square">
+    Embedding models enable semantic search by converting text to vectors in a shared space where similar meanings are close together.
+  </Card>
+  
+  <Card title="Vector Databases" icon="database">
+    Tools like FAISS enable fast similarity search over millions of vectors, making large-scale semantic search practical.
+  </Card>
+  
+  <Card title="Hybrid Search" icon="shuffle">
+    Combining keyword search (BM25) with dense retrieval often yields better results than either approach alone.
+  </Card>
+  
+  <Card title="RAG Pipeline" icon="diagram-project">
+    Retrieval-augmented generation grounds LLM responses in retrieved facts, reducing hallucinations and enabling access to current information.
+  </Card>
+</CardGroup>
+
+## Applications
+
+- **Question Answering**: Build systems that answer questions based on large document collections
+- **Chatbots**: Create assistants that can reference company documentation or knowledge bases
+- **Search Engines**: Develop semantic search for finding relevant content beyond keyword matching
+- **Recommendation**: Find similar documents, products, or content based on semantic similarity
+
+## Further Resources
+
+- [FAISS Documentation](https://github.com/facebookresearch/faiss)
+- [Cohere Embed API](https://docs.cohere.com/reference/embed)
+- [LangChain RAG Tutorial](https://python.langchain.com/docs/use_cases/question_answering/)
+- [Sentence Transformers](https://www.sbert.net/)

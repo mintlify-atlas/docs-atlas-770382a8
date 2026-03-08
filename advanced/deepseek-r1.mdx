@@ -1,0 +1,291 @@
+---
+title: 'The Illustrated DeepSeek-R1'
+description: 'A detailed visual breakdown of DeepSeek-R1, the open-source reasoning model rivaling OpenAI o1'
+---
+
+## Overview
+
+DeepSeek-R1 represents a landmark achievement in open-source AI: a reasoning model that rivals OpenAI's proprietary o1 system while being fully open-source and transparent. Released in early 2025, DeepSeek-R1 demonstrates that world-class reasoning capabilities can be achieved through innovative training techniques and efficient architectures, making advanced AI more accessible to the research community and practitioners.
+
+<Note>
+This illustrated guide is part of the bonus material for **Hands-On Large Language Models**. It provides an in-depth look at one of the most important open-source reasoning models.
+</Note>
+
+## Why DeepSeek-R1 Matters
+
+DeepSeek-R1 is significant for several reasons:
+
+- **Open Source**: Full model weights, training details, and code available
+- **Cost-Effective**: Achieves comparable performance at a fraction of the training cost
+- **Transparent Reasoning**: Shows explicit reasoning steps (unlike o1's hidden thinking)
+- **Strong Performance**: Matches or exceeds o1-preview on many benchmarks
+- **Efficient Architecture**: Built on Mixture of Experts foundation
+
+The model proves that the reasoning capabilities of frontier models like o1 are not proprietary secrets but can be replicated with the right techniques.
+
+## Key Innovations
+
+<CardGroup cols={2}>
+  <Card title="RL-First Training" icon="robot">
+    Pure reinforcement learning without distillation from other models
+  </Card>
+  
+  <Card title="Explicit Reasoning" icon="eye">
+    All reasoning steps visible, enabling verification and learning
+  </Card>
+  
+  <Card title="MoE Efficiency" icon="network-wired">
+    Built on DeepSeek-V3's efficient Mixture of Experts architecture
+  </Card>
+  
+  <Card title="Open Weights" icon="unlock">
+    Complete transparency allows community innovation and fine-tuning
+  </Card>
+</CardGroup>
+
+## What You'll Learn
+
+The illustrated guide provides a visual breakdown of DeepSeek-R1:
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="diagram-project">
+    The MoE foundation and reasoning-specific modifications
+  </Card>
+  
+  <Card title="Training Process" icon="graduation-cap">
+    From base model to reasoning specialist through RL
+  </Card>
+  
+  <Card title="Reasoning Patterns" icon="brain">
+    How the model approaches different types of problems
+  </Card>
+  
+  <Card title="Benchmark Results" icon="chart-bar">
+    Performance comparison with o1 and other reasoning models
+  </Card>
+</CardGroup>
+
+## Illustrated Guide
+
+<Card 
+  title="The Illustrated DeepSeek-R1" 
+  icon="arrow-up-right-from-square"
+  href="https://newsletter.languagemodels.co/p/the-illustrated-deepseek-r1"
+>
+  Read the full illustrated guide with detailed diagrams and visualizations showing how DeepSeek-R1 works internally.
+</Card>
+
+## Related Book Chapters
+
+DeepSeek-R1 builds on concepts from multiple chapters:
+
+- **Chapter 3: Looking Inside LLMs** - Transformer architecture and MoE
+- **Chapter 5: Text Generation** - Generation strategies for reasoning
+- **Chapter 7: Advanced Text Generation** - Reinforcement learning from human feedback
+- **Chapter 8: Customizing LLMs** - Training specialized models
+
+## Technical Deep Dive
+
+### Architecture Foundation
+
+DeepSeek-R1 is built on **DeepSeek-V3**, a 671B parameter Mixture of Experts model:
+
+- 671B total parameters
+- 37B activated per token (fine-grained MoE)
+- Multi-head latent attention (MLA) for efficiency
+- Auxiliary-loss-free load balancing
+
+This efficient foundation enables:
+- Fast inference despite large capacity
+- Cost-effective training and deployment
+- Strong baseline capabilities
+
+### Training Methodology
+
+**Phase 1: Base Model**
+- DeepSeek-V3 trained on 14.8T tokens
+- Standard next-token prediction
+- Establishes broad knowledge and capabilities
+
+**Phase 2: Reasoning via RL**
+- Pure reinforcement learning (no distillation!)
+- Group Relative Policy Optimization (GRPO)
+- Process reward model for intermediate steps
+- No supervised fine-tuning on reasoning examples
+
+**Phase 3: Alignment**
+- Additional RLHF for helpfulness and safety
+- Balance reasoning capabilities with user preferences
+- Reduce verbosity while maintaining quality
+
+<Info>
+Unlike most reasoning models, DeepSeek-R1 learned to reason through pure RL without imitating proprietary models like GPT-4 or o1. This demonstrates that reasoning emerges naturally from appropriate training signals.
+</Info>
+
+### Reasoning Process
+
+DeepSeek-R1's reasoning is explicitly structured and visible:
+
+**1. Problem Understanding**
+- Parses the question
+- Identifies relevant information
+- Notes constraints and requirements
+
+**2. Planning**
+- Outlines solution approach
+- Identifies necessary steps
+- Considers multiple strategies
+
+**3. Execution**
+- Works through problem step-by-step
+- Shows intermediate calculations
+- Explains logical connections
+
+**4. Verification**
+- Checks answer against constraints
+- Validates reasoning steps
+- Performs sanity checks
+
+**5. Reflection** (when needed)
+- Identifies potential errors
+- Considers alternative approaches
+- Refines solution
+
+This transparent process allows users to:
+- Verify reasoning correctness
+- Identify where errors occur
+- Learn from the model's approach
+- Trust the final answer
+
+## Performance Benchmarks
+
+### Mathematics
+- **AIME 2024**: 79.8% (vs o1-preview's 79.2%)
+- **MATH-500**: 97.3% accuracy
+- **Handles complex multi-step problems with high reliability**
+
+### Coding
+- **Codeforces**: Elo rating comparable to o1
+- **LiveCodeBench**: Strong performance on recent problems
+- **Complex algorithms**: Excels at planning and implementation**
+
+### Science and Reasoning
+- **GPQA Diamond**: 71.5% (graduate-level science)
+- **MMLU-Pro**: 85.6% (advanced knowledge and reasoning)
+- **Frontier Math**: Competitive with best proprietary models
+
+### Cost-Effectiveness
+- Training cost significantly lower than estimated o1 cost
+- Inference cost moderate (more tokens due to explicit reasoning)
+- Open weights eliminate API costs for self-hosting
+
+## Reasoning Examples
+
+### Mathematical Reasoning
+The model excels at breaking down complex math problems:
+- Explicit algebraic manipulation
+- Clear variable definitions
+- Step-by-step arithmetic
+- Multiple verification checks
+
+### Code Generation
+For programming tasks, it demonstrates:
+- Algorithm design and planning
+- Edge case consideration
+- Complexity analysis
+- Test case generation
+
+### Logical Deduction
+On logic puzzles, it shows:
+- Systematic constraint checking
+- Elimination strategies
+- Proof construction
+- Counter-example generation
+
+## Practical Deployment
+
+### Model Variants
+- **DeepSeek-R1**: Full 671B parameter model
+- **DeepSeek-R1-Distill**: Smaller distilled versions (1.5B, 7B, 8B, 14B, 32B, 70B)
+- **Available on Hugging Face** with permissive licensing
+
+### Use Cases
+- **Education**: Show students step-by-step problem solving
+- **Research**: Build on open foundation for reasoning research
+- **Applications**: Integrate reasoning for complex tasks
+- **Verification**: Transparent reasoning aids validation
+
+### Deployment Options
+1. **Self-hosting**: Use open weights for full control
+2. **API access**: DeepSeek offers API endpoints
+3. **Fine-tuning**: Customize for domain-specific reasoning
+4. **Distillation**: Use smaller variants for efficiency
+
+## Limitations and Considerations
+
+### Current Limitations
+- **Verbosity**: Can be quite lengthy in reasoning
+- **Speed**: Extended thinking increases latency
+- **Hallucination**: Still possible despite reasoning
+- **Language bias**: Strongest in English and Chinese
+
+### Resource Requirements
+- Full model requires significant GPU memory
+- Distilled versions more accessible (7B-70B)
+- Reasoning tokens increase inference cost
+- MoE benefits from tensor parallelism
+
+## Open-Source Impact
+
+DeepSeek-R1's release has major implications:
+
+**For Research**
+- Enables reasoning research without API costs
+- Allows investigation of reasoning mechanics
+- Facilitates technique development and testing
+
+**For Practitioners**
+- Provides powerful reasoning without vendor lock-in
+- Enables customization for specific domains
+- Reduces costs for reasoning-heavy applications
+
+**For the Field**
+- Proves reasoning isn't proprietary magic
+- Accelerates progress through transparency
+- Establishes new baseline for open models
+
+<Info>
+DeepSeek-R1 demonstrates that with innovative training techniques (pure RL, efficient architectures), open-source models can match proprietary frontier systems at a fraction of the cost.
+</Info>
+
+## Additional Resources
+
+- [DeepSeek-R1 Paper](https://arxiv.org/abs/2501.12948) - Technical details and experiments
+- [DeepSeek-V3 Paper](https://arxiv.org/abs/2412.19437) - Base architecture
+- [Model on Hugging Face](https://huggingface.co/deepseek-ai) - Download weights
+- [DeepSeek API](https://platform.deepseek.com/) - API access
+- [Official Blog](https://api-docs.deepseek.com/) - Updates and guides
+
+## Future Directions
+
+DeepSeek-R1 opens exciting possibilities:
+
+- **Domain specialization**: Fine-tune for specific reasoning tasks
+- **Multimodal reasoning**: Extend to vision and other modalities
+- **Agent systems**: Use as foundation for autonomous agents
+- **Verification tools**: Build formal verification on transparent reasoning
+- **Education**: Create reasoning tutors and learning systems
+
+<CardGroup cols={2}>
+  <Card title="Reasoning LLMs" href="/advanced/reasoning-llms">
+    General concepts behind reasoning in language models
+  </Card>
+  
+  <Card title="LLM Agents" href="/advanced/agents">
+    How reasoning models enable autonomous agent systems
+  </Card>
+</CardGroup>
+
+## Conclusion
+
+DeepSeek-R1 represents a turning point in AI accessibility. By proving that world-class reasoning can be achieved through open research and released freely, it democratizes capabilities that were recently available only through expensive proprietary APIs. For practitioners and researchers, it provides both a powerful tool and a blueprint for future innovations in reasoning AI.

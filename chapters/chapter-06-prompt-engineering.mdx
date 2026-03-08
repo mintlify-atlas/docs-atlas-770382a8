@@ -1,0 +1,398 @@
+---
+title: 'Chapter 6: Prompt Engineering'
+description: 'Methods for improving LLM outputs through effective prompt engineering techniques'
+---
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter06/Chapter%206%20-%20Prompt%20Engineering.ipynb)
+
+This chapter explores prompt engineering techniques that help you get better results from Large Language Models. You'll learn how to structure prompts effectively, provide context, and use advanced strategies to improve model outputs.
+
+## Overview
+
+Prompt engineering is the practice of designing and optimizing inputs to LLMs to achieve desired outputs. This chapter covers:
+
+- Basic ingredients of effective prompts
+- Advanced prompt engineering techniques
+- Reasoning strategies for complex tasks
+- Output verification and formatting
+
+## Setting Up
+
+<Note>
+To run the examples in this chapter, you'll need a GPU. In Google Colab, go to **Runtime > Change runtime type > Hardware accelerator > GPU > GPU type > T4**.
+</Note>
+
+<CodeGroup>
+```python Dependencies
+# Install required packages
+!pip install langchain>=0.1.17 openai>=1.13.3 langchain_openai>=0.1.6 \
+    transformers>=4.40.1 datasets>=2.18.0 accelerate>=0.27.2 \
+    sentence-transformers>=2.5.1 duckduckgo-search>=5.2.2
+!CMAKE_ARGS="-DLLAMA_CUBLAS=on" pip install llama-cpp-python
+```
+
+```python Load Model
+import torch
+from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+
+# Load Phi-3 model and tokenizer
+model = AutoModelForCausalLM.from_pretrained(
+    "microsoft/Phi-3-mini-4k-instruct",
+    device_map="cuda",
+    torch_dtype="auto",
+    trust_remote_code=False,
+)
+tokenizer = AutoTokenizer.from_pretrained("microsoft/Phi-3-mini-4k-instruct")
+
+# Create a pipeline
+pipe = pipeline(
+    "text-generation",
+    model=model,
+    tokenizer=tokenizer,
+    return_full_text=False,
+    max_new_tokens=500,
+    do_sample=False,
+)
+```
+</CodeGroup>
+
+## Basic Prompt Engineering
+
+### Simple Prompts
+
+The most basic form of prompting involves asking a direct question:
+
+```python
+messages = [
+    {"role": "user", "content": "Create a funny joke about chickens."}
+]
+
+output = pipe(messages)
+print(output[0]["generated_text"])
+# Output: Why don't chickens like to go to the gym? 
+# Because they can't crack the egg-sistence of it!
+```
+
+### Understanding Chat Templates
+
+Models use specific formatting for chat interactions. You can view the template being applied:
+
+```python
+prompt = pipe.tokenizer.apply_chat_template(messages, tokenize=False)
+print(prompt)
+```
+
+Output:
+```
+<s><|user|>
+Create a funny joke about chickens.<|end|>
+<|assistant|>
+```
+
+### Temperature and Sampling
+
+Control output randomness with temperature and top_p parameters:
+
+<Tabs>
+  <Tab title="High Temperature">
+    ```python
+    # More creative and varied outputs
+    output = pipe(messages, do_sample=True, temperature=1)
+    print(output[0]["generated_text"])
+    # Output: Why don't chickens ever play hide and seek? 
+    # Because good luck hiding when everyone always goes to the henhouse!
+    ```
+  </Tab>
+  <Tab title="High Top-P">
+    ```python
+    # Nucleus sampling for diverse outputs
+    output = pipe(messages, do_sample=True, top_p=1)
+    print(output[0]["generated_text"])
+    # Output: Why don't chickens like math class? 
+    # Because they can't solve for "x" in their eggs!
+    ```
+  </Tab>
+</Tabs>
+
+## Advanced Prompt Engineering
+
+### Complex Prompt Structure
+
+Build comprehensive prompts with multiple components:
+
+```python
+# Prompt components
+persona = "You are an expert in Large Language models. You excel at breaking down complex papers into digestible summaries.\n"
+instruction = "Summarize the key findings of the paper provided.\n"
+context = "Your summary should extract the most crucial points that can help researchers quickly understand the most vital information of the paper.\n"
+data_format = "Create a bullet-point summary that outlines the method. Follow this up with a concise paragraph that encapsulates the main results.\n"
+audience = "The summary is designed for busy researchers that quickly need to grasp the newest trends in Large Language Models.\n"
+tone = "The tone should be professional and clear.\n"
+data = f"Text to summarize: {text}"
+
+# Combine all components
+query = persona + instruction + context + data_format + audience + tone + data
+
+messages = [{"role": "user", "content": query}]
+outputs = pipe(messages)
+```
+
+<Tip>
+Experiment with removing or adding components to see their impact on generated outputs. Each element serves a specific purpose in guiding the model.
+</Tip>
+
+### In-Context Learning: Few-Shot Prompting
+
+Provide examples to guide the model's behavior:
+
+```python
+# One-shot prompt: provide a single example
+one_shot_prompt = [
+    {
+        "role": "user",
+        "content": "A 'Gigamuru' is a type of Japanese musical instrument. An example of a sentence that uses the word Gigamuru is:"
+    },
+    {
+        "role": "assistant",
+        "content": "I have a Gigamuru that my uncle gave me as a gift. I love to play it at home."
+    },
+    {
+        "role": "user",
+        "content": "To 'screeg' something is to swing a sword at it. An example of a sentence that uses the word screeg is:"
+    }
+]
+
+outputs = pipe(one_shot_prompt)
+print(outputs[0]["generated_text"])
+# Output: During the intense duel, the knight skillfully screeged 
+# his opponent's shield, forcing him to defend himself.
+```
+
+### Chain Prompting: Breaking Down Complex Tasks
+
+Split complex tasks into smaller, manageable steps:
+
+<Steps>
+  <Step title="Create Product Name and Slogan">
+    ```python
+    product_prompt = [
+        {"role": "user", "content": "Create a name and slogan for a chatbot that leverages LLMs."}
+    ]
+    outputs = pipe(product_prompt)
+    product_description = outputs[0]["generated_text"]
+    print(product_description)
+    # Output: Name: "MindMeld Messenger"
+    # Slogan: "Unleashing Intelligent Conversations, One Response at a Time"
+    ```
+  </Step>
+  
+  <Step title="Generate Sales Pitch from Product">
+    ```python
+    sales_prompt = [
+        {"role": "user", "content": f"Generate a very short sales pitch for the following product: '{product_description}'"}
+    ]
+    outputs = pipe(sales_prompt)
+    sales_pitch = outputs[0]["generated_text"]
+    print(sales_pitch)
+    # Output: Introducing MindMeld Messenger - your ultimate communication partner! 
+    # Unleash intelligent conversations with our innovative AI-powered messaging platform...
+    ```
+  </Step>
+</Steps>
+
+<Note>
+Chain prompting allows you to maintain quality at each step while building complex outputs incrementally. Each step's output becomes input for the next.
+</Note>
+
+## Reasoning with Generative Models
+
+### Chain-of-Thought (CoT) Prompting
+
+Enable better reasoning by showing step-by-step thinking:
+
+```python
+# Chain-of-Thought prompt with reasoning example
+cot_prompt = [
+    {
+        "role": "user", 
+        "content": "Roger has 5 tennis balls. He buys 2 more cans of tennis balls. Each can has 3 tennis balls. How many tennis balls does he have now?"
+    },
+    {
+        "role": "assistant", 
+        "content": "Roger started with 5 balls. 2 cans of 3 tennis balls each is 6 tennis balls. 5 + 6 = 11. The answer is 11."
+    },
+    {
+        "role": "user", 
+        "content": "The cafeteria had 23 apples. If they used 20 to make lunch and bought 6 more, how many apples do they have?"
+    }
+]
+
+outputs = pipe(cot_prompt)
+print(outputs[0]["generated_text"])
+# Output: The cafeteria started with 23 apples. They used 20 apples, 
+# so they had 23 - 20 = 3 apples left. Then they bought 6 more apples, 
+# so they now have 3 + 6 = 9 apples. The answer is 9.
+```
+
+### Zero-Shot Chain-of-Thought
+
+Trigger reasoning without examples using magic phrases:
+
+```python
+zeroshot_cot_prompt = [
+    {
+        "role": "user", 
+        "content": "The cafeteria had 23 apples. If they used 20 to make lunch and bought 6 more, how many apples do they have? Let's think step-by-step."
+    }
+]
+
+outputs = pipe(zeroshot_cot_prompt)
+print(outputs[0]["generated_text"])
+# Output: Step 1: Start with the initial number of apples, which is 23.
+# Step 2: Subtract the number of apples used to make lunch, which is 20. So, 23 - 20 = 3 apples remaining.
+# Step 3: Add the number of apples bought, which is 6. So, 3 + 6 = 9 apples.
+# The cafeteria now has 9 apples.
+```
+
+<Tip>
+The phrase "Let's think step-by-step" is remarkably effective at triggering reasoning behavior in LLMs without requiring examples.
+</Tip>
+
+### Tree-of-Thought: Multiple Reasoning Paths
+
+Simulate multiple experts reasoning together:
+
+```python
+zeroshot_tot_prompt = [
+    {
+        "role": "user", 
+        "content": "Imagine three different experts are answering this question. All experts will write down 1 step of their thinking, then share it with the group. Then all experts will go on to the next step, etc. If any expert realises they're wrong at any point then they leave. The question is 'The cafeteria had 23 apples. If they used 20 to make lunch and bought 6 more, how many apples do they have?' Make sure to discuss the results."
+    }
+]
+
+outputs = pipe(zeroshot_tot_prompt)
+print(outputs[0]["generated_text"])
+# Output: Expert 1: Step 1 - Start with the initial number of apples: 23 apples.
+# Expert 2: Step 1 - Subtract the apples used for lunch: 23 - 20 = 3 apples remaining.
+# Expert 3: Step 1 - Add the newly bought apples: 3 + 6 = 9 apples.
+# ...
+# All experts agree on the final count: The cafeteria has 9 apples.
+```
+
+## Output Verification
+
+### Structured Output with Examples
+
+Guide the model to produce specific formats:
+
+<Tabs>
+  <Tab title="Zero-Shot">
+    ```python
+    zeroshot_prompt = [
+        {"role": "user", "content": "Create a character profile for an RPG game in JSON format."}
+    ]
+    
+    outputs = pipe(zeroshot_prompt)
+    print(outputs[0]["generated_text"])
+    # Produces verbose JSON with many fields
+    ```
+  </Tab>
+  
+  <Tab title="One-Shot Template">
+    ```python
+    one_shot_template = """Create a short character profile for an RPG game. Make sure to only use this format:
+
+{
+  "description": "A SHORT DESCRIPTION",
+  "name": "THE CHARACTER'S NAME",
+  "armor": "ONE PIECE OF ARMOR",
+  "weapon": "ONE OR MORE WEAPONS"
+}
+"""
+    one_shot_prompt = [{"role": "user", "content": one_shot_template}]
+    
+    outputs = pipe(one_shot_prompt)
+    print(outputs[0]["generated_text"])
+    # Output:
+    # {
+    #   "description": "A cunning rogue with a mysterious past, skilled in stealth and deception.",
+    #   "name": "Lysandra Shadowstep",
+    #   "armor": "Leather Cloak of the Night",
+    #   "weapon": "Dagger of Whispers, Throwing Knives"
+    # }
+    ```
+  </Tab>
+</Tabs>
+
+### Grammar: Constrained Sampling
+
+Force valid JSON output using constrained sampling with llama-cpp-python:
+
+```python
+from llama_cpp.llama import Llama
+
+# Load Phi-3 with llama.cpp
+llm = Llama.from_pretrained(
+    repo_id="microsoft/Phi-3-mini-4k-instruct-gguf",
+    filename="*fp16.gguf",
+    n_gpu_layers=-1,
+    n_ctx=2048,
+    verbose=False
+)
+
+# Generate with JSON schema enforcement
+output = llm.create_chat_completion(
+    messages=[
+        {"role": "user", "content": "Create a warrior for an RPG in JSON format."},
+    ],
+    response_format={"type": "json_object"},
+    temperature=0,
+)['choices'][0]['message']["content"]
+
+print(json.dumps(json.loads(output), indent=4))
+```
+
+<Warning>
+Constrained sampling guarantees valid JSON output but may require additional computational overhead. Use it when format compliance is critical.
+</Warning>
+
+## Best Practices
+
+<Steps>
+  <Step title="Start Simple">
+    Begin with clear, direct prompts before adding complexity.
+  </Step>
+  
+  <Step title="Add Context Gradually">
+    Include persona, instructions, context, format requirements, and tone as needed.
+  </Step>
+  
+  <Step title="Use Examples">
+    Few-shot prompting is powerful for demonstrating desired behavior and output formats.
+  </Step>
+  
+  <Step title="Break Down Complex Tasks">
+    Use chain prompting to split multi-step problems into manageable pieces.
+  </Step>
+  
+  <Step title="Enable Reasoning">
+    For mathematical or logical problems, use Chain-of-Thought prompting with "Let's think step-by-step."
+  </Step>
+  
+  <Step title="Constrain When Necessary">
+    Use constrained sampling or detailed format examples when you need specific output structures.
+  </Step>
+</Steps>
+
+## Key Takeaways
+
+- **Prompt structure matters**: Persona, instructions, context, format, audience, and tone all influence outputs
+- **Examples are powerful**: Few-shot learning can dramatically improve results
+- **Chain complex tasks**: Break down multi-step problems into sequential prompts
+- **Trigger reasoning**: Use CoT prompting for mathematical and logical tasks
+- **Control output format**: Use examples or constrained sampling for structured outputs
+- **Experiment iteratively**: Test different approaches and refine based on results
+
+## Next Steps
+
+Continue to [Chapter 7: Advanced Text Generation Techniques](/chapters/chapter-07-advanced-generation) to learn about chaining, memory, and agents that extend beyond prompt engineering.

@@ -1,0 +1,293 @@
+---
+title: "Creating Text Embedding Models"
+description: "Learn how to train and fine-tune text embedding models from scratch using different loss functions and evaluation strategies."
+---
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter10/Chapter%2010%20-%20Creating%20Text%20Embedding%20Models.ipynb)
+
+## Overview
+
+This chapter explores methods for both training and fine-tuning embedding models. Text embedding models convert text into dense vector representations that capture semantic meaning, enabling similarity search, clustering, and retrieval tasks.
+
+<Note>
+Use a GPU for training embedding models. In Google Colab, select **Runtime > Change runtime type > Hardware accelerator > GPU > GPU type > T4**.
+</Note>
+
+## When to Train Embedding Models
+
+Consider training or fine-tuning embedding models when:
+
+- You need domain-specific embeddings (medical, legal, technical documentation)
+- Existing models don't capture your data's nuances
+- You want to optimize for specific similarity tasks
+- You have labeled pairs or triplets of similar/dissimilar texts
+
+## Dataset Preparation
+
+We'll use the MNLI (Multi-Genre Natural Language Inference) dataset from GLUE, which contains premise-hypothesis pairs with entailment labels.
+
+```python
+from datasets import load_dataset
+
+# Load MNLI dataset from GLUE
+# 0 = entailment, 1 = neutral, 2 = contradiction
+train_dataset = load_dataset("glue", "mnli", split="train").select(range(50_000))
+train_dataset = train_dataset.remove_columns("idx")
+```
+
+Example data point:
+
+```python
+{
+  'premise': 'One of our number will carry out your instructions minutely.',
+  'hypothesis': 'A member of my team will execute your orders with immense precision.',
+  'label': 0  # entailment
+}
+```
+
+## Training from Scratch
+
+### Model Initialization
+
+Start with a base BERT model without sentence-transformers weights:
+
+```python
+from sentence_transformers import SentenceTransformer
+
+# Use a base model - creates mean pooling automatically
+embedding_model = SentenceTransformer('bert-base-uncased')
+```
+
+### Loss Functions
+
+<Tip>
+The choice of loss function depends on your data format and task requirements.
+</Tip>
+
+#### Softmax Loss
+
+Best for classification-style training with labeled categories:
+
+```python
+from sentence_transformers import losses
+
+# Define the loss function with number of labels
+train_loss = losses.SoftmaxLoss(
+    model=embedding_model,
+    sentence_embedding_dimension=embedding_model.get_sentence_embedding_dimension(),
+    num_labels=3
+)
+```
+
+#### Cosine Similarity Loss
+
+For training with similarity scores between sentence pairs:
+
+```python
+from datasets import Dataset
+
+# Remap labels: (neutral/contradiction)=0, (entailment)=1
+mapping = {2: 0, 1: 0, 0: 1}
+train_dataset = Dataset.from_dict({
+    "sentence1": train_dataset["premise"],
+    "sentence2": train_dataset["hypothesis"],
+    "label": [float(mapping[label]) for label in train_dataset["label"]]
+})
+
+# Loss function
+train_loss = losses.CosineSimilarityLoss(model=embedding_model)
+```
+
+**Training results:**
+- Training loss progression: 0.232 → 0.169 → 0.142
+- Spearman correlation: **0.73**
+
+#### Multiple Negatives Ranking Loss
+
+Most effective for retrieval tasks with anchor-positive-negative triplets:
+
+```python
+import random
+from tqdm import tqdm
+
+# Filter for entailment pairs only
+mnli = mnli.filter(lambda x: True if x['label'] == 0 else False)
+
+# Prepare data with soft negatives
+train_dataset = {"anchor": [], "positive": [], "negative": []}
+soft_negatives = mnli["hypothesis"]
+random.shuffle(soft_negatives)
+
+for row, soft_negative in zip(mnli, soft_negatives):
+    train_dataset["anchor"].append(row["premise"])
+    train_dataset["positive"].append(row["hypothesis"])
+    train_dataset["negative"].append(soft_negative)
+
+train_dataset = Dataset.from_dict(train_dataset)
+
+# Loss function
+train_loss = losses.MultipleNegativesRankingLoss(model=embedding_model)
+```
+
+**Training results:**
+- Training loss progression: 0.345 → 0.105 → 0.069
+- Spearman correlation: **0.82** (best performance)
+
+### Training Configuration
+
+```python
+from sentence_transformers.training_args import SentenceTransformerTrainingArguments
+from sentence_transformers.trainer import SentenceTransformerTrainer
+
+# Define training arguments
+args = SentenceTransformerTrainingArguments(
+    output_dir="base_embedding_model",
+    num_train_epochs=1,
+    per_device_train_batch_size=32,
+    per_device_eval_batch_size=32,
+    warmup_steps=100,
+    fp16=True,
+    eval_steps=100,
+    logging_steps=100,
+)
+
+# Train embedding model
+trainer = SentenceTransformerTrainer(
+    model=embedding_model,
+    args=args,
+    train_dataset=train_dataset,
+    loss=train_loss,
+    evaluator=evaluator
+)
+trainer.train()
+```
+
+### Evaluation Setup
+
+```python
+from sentence_transformers.evaluation import EmbeddingSimilarityEvaluator
+
+# Create an embedding similarity evaluator for STS-B
+val_sts = load_dataset('glue', 'stsb', split='validation')
+evaluator = EmbeddingSimilarityEvaluator(
+    sentences1=val_sts["sentence1"],
+    sentences2=val_sts["sentence2"],
+    scores=[score/5 for score in val_sts["label"]],
+    main_similarity="cosine"
+)
+
+# Evaluate the trained model
+results = evaluator(embedding_model)
+```
+
+## Fine-Tuning Existing Models
+
+### Starting from Pre-trained Model
+
+```python
+from sentence_transformers import SentenceTransformer
+
+# Load a pre-trained model
+embedding_model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+
+# Use Multiple Negatives Ranking Loss
+train_loss = losses.MultipleNegativesRankingLoss(model=embedding_model)
+
+# Fine-tune with same training setup
+trainer = SentenceTransformerTrainer(
+    model=embedding_model,
+    args=args,
+    train_dataset=train_dataset,
+    loss=train_loss,
+    evaluator=evaluator
+)
+trainer.train()
+```
+
+**Fine-tuning results:**
+- Original model: Spearman 0.867
+- Fine-tuned model: Spearman 0.848
+- Training improved task-specific performance
+
+## Evaluation with MTEB
+
+Massive Text Embedding Benchmark (MTEB) provides standardized evaluation:
+
+```python
+from mteb import MTEB
+
+# Choose evaluation task
+evaluation = MTEB(tasks=["Banking77Classification"])
+
+# Calculate results
+results = evaluation.run(embedding_model)
+```
+
+**Results:**
+```python
+{
+  'Banking77Classification': {
+    'accuracy': 0.460,
+    'f1': 0.458,
+    'accuracy_stderr': 0.0096
+  }
+}
+```
+
+## Best Practices
+
+<Steps>
+
+<Step title="Choose the Right Loss Function">
+- **SoftmaxLoss**: Classification tasks with categories
+- **CosineSimilarityLoss**: Pairwise similarity learning
+- **MultipleNegativesRankingLoss**: Retrieval and semantic search (recommended)
+</Step>
+
+<Step title="Prepare Quality Data">
+- Use domain-specific text pairs
+- Include hard negatives for better discrimination
+- Balance positive and negative examples
+</Step>
+
+<Step title="Optimize Training">
+- Start with learning rate 2e-5
+- Use warmup steps (10% of total)
+- Enable fp16 for faster training
+- Monitor evaluation metrics during training
+</Step>
+
+<Step title="Evaluate Thoroughly">
+- Test on multiple downstream tasks
+- Use MTEB for standardized benchmarking
+- Compare with baseline models
+</Step>
+
+</Steps>
+
+<Warning>
+Clear VRAM between training runs to avoid out-of-memory errors:
+
+```python
+import gc
+import torch
+
+gc.collect()
+torch.cuda.empty_cache()
+```
+</Warning>
+
+## Training Metrics Comparison
+
+| Loss Function | Training Loss | Spearman Correlation | Use Case |
+|--------------|---------------|---------------------|----------|
+| SoftmaxLoss | 0.845 | 0.45 | Classification |
+| CosineSimilarityLoss | 0.157 | 0.73 | Pairwise similarity |
+| MultipleNegativesRankingLoss | 0.128 | 0.82 | Semantic search |
+
+## Next Steps
+
+- Experiment with different base models (RoBERTa, MPNet)
+- Try domain adaptation with your specific data
+- Implement hard negative mining for better performance
+- Evaluate on multiple MTEB tasks for comprehensive assessment

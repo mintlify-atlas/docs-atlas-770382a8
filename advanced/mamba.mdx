@@ -1,0 +1,145 @@
+---
+title: 'Visual Guide to Mamba and State Space Models'
+description: 'Explore an alternative to Transformers through state space models and the Mamba architecture'
+---
+
+## Overview
+
+While Transformers have dominated the LLM landscape, they come with a fundamental limitation: quadratic complexity in the attention mechanism. State Space Models (SSMs), and specifically the Mamba architecture, offer a compelling alternative that achieves linear complexity while maintaining strong performance across a wide range of tasks.
+
+<Note>
+This guide is part of the bonus material for **Hands-On Large Language Models**. It extends beyond the Transformer-focused content of the book to explore alternative architectures.
+</Note>
+
+## Why State Space Models Matter
+
+State Space Models represent a paradigm shift in sequence modeling:
+
+- **Linear Complexity**: Process sequences in O(n) time instead of O(n²) like Transformers
+- **Long Context**: Handle extremely long sequences efficiently (100K+ tokens)
+- **Efficient Inference**: Fast generation without the memory overhead of KV caching
+- **Competitive Performance**: Match or exceed Transformer performance on many benchmarks
+
+## From RNNs to State Space Models
+
+The evolution of sequence modeling architectures:
+
+1. **RNNs** - Sequential processing, hard to parallelize
+2. **Transformers** - Parallel training but quadratic complexity
+3. **State Space Models** - Parallel training AND linear complexity
+4. **Mamba** - Selective state space model with input-dependent dynamics
+
+## What You'll Learn
+
+The visual guide provides an intuitive understanding through detailed illustrations:
+
+<CardGroup cols={2}>
+  <Card title="Mathematical Foundations" icon="function">
+    State space equations, continuous-time models, and discretization approaches
+  </Card>
+  
+  <Card title="Architecture Design" icon="sitemap">
+    How Mamba differs from Transformers and earlier SSMs like S4
+  </Card>
+  
+  <Card title="Selective Mechanisms" icon="filter">
+    Input-dependent state transitions that give Mamba its power
+  </Card>
+  
+  <Card title="Performance Insights" icon="chart-line">
+    Benchmarks, scaling properties, and when to use Mamba vs Transformers
+  </Card>
+</CardGroup>
+
+## Visual Guide
+
+<Card 
+  title="A Visual Guide to Mamba and State Space Models" 
+  icon="arrow-up-right-from-square"
+  href="https://newsletter.maartengrootendorst.com/p/a-visual-guide-to-mamba-and-state"
+>
+  Read the full visual guide with detailed diagrams explaining state space models from fundamentals to the Mamba architecture.
+</Card>
+
+## Related Book Chapters
+
+While the book focuses on Transformers, these chapters provide relevant context:
+
+- **Chapter 2: Tokens and Embeddings** - Input representations used by all architectures
+- **Chapter 3: Looking Inside LLMs** - Architecture components and design principles
+- **Chapter 4: Text Classification** - Sequence modeling tasks where SSMs excel
+- **Chapter 5: Text Generation** - Efficient generation with state space models
+
+## Key Concepts Covered
+
+### State Space Fundamentals
+- **Continuous-time dynamics**: How state space models evolve over time
+- **Discretization methods**: Converting continuous models to discrete time steps
+- **Structured matrices**: Efficient parameterization (HiPPO, DPLR)
+- **Convolution view**: Alternative perspective enabling parallelization
+
+### The Mamba Architecture
+- **Selective SSMs**: Making state transitions depend on input content
+- **Hardware-aware design**: Optimizations for modern GPUs
+- **Simplified architecture**: No attention, no MLPs in traditional sense
+- **Scaling properties**: How Mamba performs as model size increases
+
+### Advantages and Trade-offs
+- **Inference efficiency**: Constant memory vs growing KV cache
+- **Context length**: Handling arbitrarily long sequences
+- **Training efficiency**: Parallelization through convolution view
+- **Task performance**: Where Mamba excels and where Transformers still lead
+
+## The Mamba Innovation
+
+Mamba's key innovation is making the state space model **selective** - the parameters that govern state transitions depend on the input:
+
+```
+Previous SSMs: A, B, C are fixed parameters
+Mamba:        A, B, C = functions of input x
+```
+
+This selectivity allows Mamba to:
+- Focus on relevant information in long contexts
+- Forget irrelevant information efficiently
+- Adapt dynamics to different types of content
+
+<Info>
+Mamba achieves performance comparable to Transformers while being 5x faster at inference for long sequences and using significantly less memory.
+</Info>
+
+## Practical Considerations
+
+### When to Use Mamba
+- Long-document processing (books, legal documents, code)
+- Real-time applications requiring fast inference
+- Resource-constrained deployments
+- Streaming applications
+
+### When to Use Transformers
+- Tasks requiring precise attention patterns
+- When you need maximum performance regardless of cost
+- Leveraging existing pretrained models
+- Tasks with shorter contexts
+
+## Additional Resources
+
+- [Mamba: Linear-Time Sequence Modeling with Selective State Spaces](https://arxiv.org/abs/2312.00752) - Original paper
+- [Mamba-2](https://arxiv.org/abs/2405.21060) - Improved architecture
+- [State Spaces GitHub](https://github.com/state-spaces/mamba) - Official implementation
+- [The Annotated S4](https://srush.github.io/annotated-s4/) - Detailed S4 explanation
+- [Structured State Spaces for Sequence Modeling](https://arxiv.org/abs/2111.00396) - S4 paper
+
+## The Future of Sequence Modeling
+
+State space models represent an exciting direction in efficient sequence modeling. While Transformers remain dominant, architectures like Mamba show that alternative approaches can achieve competitive performance with better efficiency characteristics.
+
+<CardGroup cols={2}>
+  <Card title="Mixture of Experts" href="/advanced/mixture-of-experts">
+    Another approach to efficient scaling of language models
+  </Card>
+  
+  <Card title="Quantization" href="/advanced/quantization">
+    Complementary technique for efficient model deployment
+  </Card>
+</CardGroup>

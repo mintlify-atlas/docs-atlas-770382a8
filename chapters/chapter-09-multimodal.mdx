@@ -1,0 +1,389 @@
+---
+title: 'Chapter 9: Multimodal Large Language Models'
+description: 'Adding vision capabilities to large language models through CLIP, BLIP-2, and other multimodal architectures'
+---
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter09/Chapter%209%20-%20Multimodal%20Large%20Language%20Models.ipynb)
+
+Chapter 9 explores multimodal large language models that can process and understand both images and text, opening up new possibilities for AI applications.
+
+## Overview
+
+Multimodal models combine vision and language understanding, enabling AI systems to perform tasks like image captioning, visual question answering, and image-text retrieval.
+
+### Key Topics Covered
+
+- CLIP (Contrastive Language-Image Pre-training)
+- Image and text embeddings
+- Similarity search across modalities
+- BLIP-2 for image captioning and VQA
+- Multimodal architectures
+
+## CLIP: Bridging Vision and Language
+
+CLIP learns to align images and text in a shared embedding space, enabling zero-shot image classification and cross-modal retrieval.
+
+### Loading an Image
+
+```python
+from urllib.request import urlopen
+from PIL import Image
+
+# Load an AI-generated image
+puppy_path = "https://raw.githubusercontent.com/HandsOnLLM/Hands-On-Large-Language-Models/main/chapter09/images/puppy.png"
+image = Image.open(urlopen(puppy_path)).convert("RGB")
+caption = "a puppy playing in the snow"
+```
+
+### Setting Up CLIP
+
+```python
+from transformers import CLIPTokenizerFast, CLIPProcessor, CLIPModel
+
+model_id = "openai/clip-vit-base-patch32"
+
+# Load tokenizer for text
+clip_tokenizer = CLIPTokenizerFast.from_pretrained(model_id)
+
+# Load processor for images
+clip_processor = CLIPProcessor.from_pretrained(model_id)
+
+# Main model for embeddings
+model = CLIPModel.from_pretrained(model_id)
+```
+
+### Creating Text Embeddings
+
+```python
+# Tokenize text
+inputs = clip_tokenizer(caption, return_tensors="pt")
+print(inputs)
+# {'input_ids': tensor([[49406, 320, 6829, 1629, 530, 518, 2583, 49407]]), 
+#  'attention_mask': tensor([[1, 1, 1, 1, 1, 1, 1, 1]])}
+
+# Convert back to tokens
+tokens = clip_tokenizer.convert_ids_to_tokens(inputs["input_ids"][0])
+print(tokens)
+# ['<|startoftext|>', 'a</w>', 'puppy</w>', 'playing</w>', 'in</w>', 'the</w>', 'snow</w>', '<|endoftext|>']
+
+# Create text embedding
+text_embedding = model.get_text_features(**inputs)
+print(text_embedding.shape)  # torch.Size([1, 512])
+```
+
+### Creating Image Embeddings
+
+```python
+# Preprocess image
+processed_image = clip_processor(
+    text=None, 
+    images=image, 
+    return_tensors='pt'
+)['pixel_values']
+
+print(processed_image.shape)  # torch.Size([1, 3, 224, 224])
+
+# Create image embedding
+image_embedding = model.get_image_features(processed_image)
+print(image_embedding.shape)  # torch.Size([1, 512])
+```
+
+<Note>
+CLIP embeddings are 512-dimensional vectors that exist in the same space for both images and text.
+</Note>
+
+### Computing Similarity
+
+```python
+# Normalize embeddings
+text_embedding /= text_embedding.norm(dim=-1, keepdim=True)
+image_embedding /= image_embedding.norm(dim=-1, keepdim=True)
+
+# Calculate cosine similarity
+text_embedding = text_embedding.detach().cpu().numpy()
+image_embedding = image_embedding.detach().cpu().numpy()
+score = text_embedding @ image_embedding.T
+
+print(score)  # [[0.33149636]]
+```
+
+## Multi-Image Comparison
+
+Compare multiple images with multiple captions to find the best matches.
+
+```python
+import numpy as np
+
+# Load multiple images
+puppy_path = "https://raw.githubusercontent.com/HandsOnLLM/Hands-On-Large-Language-Models/main/chapter09/images/puppy.png"
+cat_path = "https://raw.githubusercontent.com/HandsOnLLM/Hands-On-Large-Language-Models/main/chapter09/images/cat.png"
+car_path = "https://raw.githubusercontent.com/HandsOnLLM/Hands-On-Large-Language-Models/main/chapter09/images/car.png"
+
+paths = [puppy_path, cat_path, car_path]
+images = [Image.open(urlopen(path)).convert("RGBA") for path in paths]
+
+captions = [
+    "a puppy playing in the snow",
+    "a pixelated image of a cute cat",
+    "A supercar on the road with the sunset in the background"
+]
+
+# Embed all images
+image_embeddings = []
+for image in images:
+    image_processed = clip_processor(images=image, return_tensors='pt')['pixel_values']
+    image_embedding = model.get_image_features(image_processed).detach().cpu().numpy()[0]
+    image_embeddings.append(image_embedding)
+image_embeddings = np.array(image_embeddings)
+
+# Embed all captions
+text_embeddings = []
+for caption in captions:
+    inputs = clip_tokenizer(caption, return_tensors="pt")
+    text_emb = model.get_text_features(**inputs).detach().cpu().numpy()[0]
+    text_embeddings.append(text_emb)
+text_embeddings = np.array(text_embeddings)
+
+# Calculate similarity matrix
+from sklearn.metrics.pairwise import cosine_similarity
+sim_matrix = cosine_similarity(image_embeddings, text_embeddings)
+```
+
+### Visualizing Similarities
+
+The similarity matrix shows how well each image matches each caption:
+
+|  | "puppy in snow" | "pixelated cat" | "supercar sunset" |
+|---|---|---|---|
+| Puppy Image | **0.33** | 0.19 | 0.11 |
+| Cat Image | 0.15 | **0.35** | 0.09 |
+| Car Image | 0.08 | 0.13 | **0.31** |
+
+<Tip>
+Higher values indicate stronger semantic alignment between image and text.
+</Tip>
+
+## Sentence-BERT for CLIP
+
+Simplify CLIP usage with the Sentence Transformers library.
+
+```python
+from sentence_transformers import SentenceTransformer, util
+
+# Load SBERT-compatible CLIP model
+model = SentenceTransformer('clip-ViT-B-32')
+
+# Encode images and text
+image_embeddings = model.encode(images)
+text_embeddings = model.encode(captions)
+
+# Compute similarities
+sim_matrix = util.cos_sim(image_embeddings, text_embeddings)
+print(sim_matrix)
+```
+
+## BLIP-2: Advanced Multimodal Understanding
+
+BLIP-2 combines a vision encoder, Q-Former, and language model for sophisticated image understanding tasks.
+
+### Setting Up BLIP-2
+
+```python
+from transformers import AutoProcessor, Blip2ForConditionalGeneration
+import torch
+
+# Load processor and model
+blip_processor = AutoProcessor.from_pretrained(
+    "Salesforce/blip2-opt-2.7b",
+    revision="51572668da0eb669e01a189dc22abe6088589a24"
+)
+model = Blip2ForConditionalGeneration.from_pretrained(
+    "Salesforce/blip2-opt-2.7b",
+    revision="51572668da0eb669e01a189dc22abe6088589a24",
+    torch_dtype=torch.float16
+)
+
+# Send model to GPU
+device = "cuda" if torch.cuda.is_available() else "cpu"
+model.to(device)
+```
+
+### Image Preprocessing
+
+```python
+# Load image
+car_path = "https://raw.githubusercontent.com/HandsOnLLM/Hands-On-Large-Language-Models/main/chapter09/images/car.png"
+image = Image.open(urlopen(car_path)).convert("RGB")
+
+# Preprocess image
+inputs = blip_processor(image, return_tensors="pt").to(device, torch.float16)
+print(inputs["pixel_values"].shape)  # torch.Size([1, 3, 224, 224])
+```
+
+### Text Preprocessing
+
+```python
+# Tokenizer information
+print(blip_processor.tokenizer)
+# GPT2TokenizerFast(name_or_path='Salesforce/blip2-opt-2.7b', vocab_size=50265, ...)
+
+# Tokenize text
+text = "Her vocalization was remarkably melodic"
+token_ids = blip_processor(image, text=text, return_tensors="pt")
+token_ids = token_ids.to(device, torch.float16)["input_ids"][0]
+
+# Convert to tokens
+tokens = blip_processor.tokenizer.convert_ids_to_tokens(token_ids)
+print(tokens)
+# ['</s>', 'Her', '_vocal', 'ization', '_was', '_remarkably', '_mel', 'odic']
+```
+
+<Note>
+BLIP-2 uses the GPT-2 tokenizer. The `Ġ` character represents spaces and is replaced with `_` for clarity.
+</Note>
+
+## Use Case 1: Image Captioning
+
+Generate descriptive captions for images automatically.
+
+```python
+# Load image
+image = Image.open(urlopen(car_path)).convert("RGB")
+
+# Preprocess
+inputs = blip_processor(image, return_tensors="pt").to(device, torch.float16)
+
+# Generate caption
+generated_ids = model.generate(**inputs, max_new_tokens=20)
+generated_text = blip_processor.batch_decode(generated_ids, skip_special_tokens=True)
+caption = generated_text[0].strip()
+
+print(caption)
+# "an orange supercar driving on the road at sunset"
+```
+
+### Rorschach Test Example
+
+```python
+# Load Rorschach inkblot
+url = "https://upload.wikimedia.org/wikipedia/commons/7/70/Rorschach_blot_01.jpg"
+image = Image.open(urlopen(url)).convert("RGB")
+
+# Generate caption
+inputs = blip_processor(image, return_tensors="pt").to(device, torch.float16)
+generated_ids = model.generate(**inputs, max_new_tokens=20)
+generated_text = blip_processor.batch_decode(generated_ids, skip_special_tokens=True)
+print(generated_text[0].strip())
+# "a black and white ink drawing of a bat"
+```
+
+<Tip>
+Image captioning can be used for accessibility (alt text), content moderation, search indexing, and automatic tagging.
+</Tip>
+
+## Use Case 2: Visual Question Answering
+
+Ask questions about images and get specific answers.
+
+```python
+# Load image
+image = Image.open(urlopen(car_path)).convert("RGB")
+
+# Create prompt
+prompt = "Question: Write down what you see in this picture. Answer:"
+
+# Process image and prompt together
+inputs = blip_processor(
+    image, 
+    text=prompt, 
+    return_tensors="pt"
+).to(device, torch.float16)
+
+# Generate answer
+generated_ids = model.generate(**inputs, max_new_tokens=30)
+generated_text = blip_processor.batch_decode(generated_ids, skip_special_tokens=True)
+answer = generated_text[0].strip()
+
+print(answer)
+# "A sports car driving on the road at sunset"
+```
+
+### More VQA Examples
+
+```python
+# What color is the car?
+prompt = "Question: What color is the car? Answer:"
+inputs = blip_processor(image, text=prompt, return_tensors="pt").to(device, torch.float16)
+generated_ids = model.generate(**inputs, max_new_tokens=10)
+answer = blip_processor.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
+# "orange"
+
+# What time of day?
+prompt = "Question: What time of day is it? Answer:"
+inputs = blip_processor(image, text=prompt, return_tensors="pt").to(device, torch.float16)
+generated_ids = model.generate(**inputs, max_new_tokens=10)
+answer = blip_processor.batch_decode(generated_ids, skip_special_tokens=True)[0].strip()
+# "sunset"
+```
+
+## Architecture Overview
+
+<Steps>
+  <Step title="Vision Encoder">
+    Processes images into visual features using a Vision Transformer (ViT).
+  </Step>
+  
+  <Step title="Q-Former">
+    Querying Transformer that bridges the vision and language modalities, extracting relevant visual information for the language model.
+  </Step>
+  
+  <Step title="Language Model">
+    Generates text based on visual features and optional text prompts. BLIP-2 uses OPT or FlanT5.
+  </Step>
+</Steps>
+
+## Key Takeaways
+
+<CardGroup cols={2}>
+  <Card title="Shared Embedding Space" icon="diagram-venn">
+    CLIP aligns images and text in a common space, enabling zero-shot classification and cross-modal retrieval.
+  </Card>
+  
+  <Card title="Image Captioning" icon="image">
+    BLIP-2 can automatically generate descriptive captions for images without task-specific training.
+  </Card>
+  
+  <Card title="Visual QA" icon="circle-question">
+    Ask specific questions about image content and get accurate, grounded answers.
+  </Card>
+  
+  <Card title="Multimodal Understanding" icon="brain">
+    Modern architectures combine specialized vision and language components for sophisticated reasoning.
+  </Card>
+</CardGroup>
+
+## Applications
+
+- **Accessibility**: Generate alt text for images automatically
+- **Content Moderation**: Detect inappropriate visual content
+- **E-commerce**: Search products by image or description
+- **Education**: Interactive visual learning with VQA
+- **Healthcare**: Medical image analysis with natural language queries
+- **Robotics**: Enable robots to understand and describe their visual environment
+
+## Model Comparison
+
+| Model | Image Size | Text-Image | Captioning | VQA | Parameters |
+|-------|-----------|------------|------------|-----|------------|
+| CLIP ViT-B/32 | 224×224 | ✓ | ✗ | ✗ | 151M |
+| CLIP ViT-L/14 | 224×224 | ✓ | ✗ | ✗ | 428M |
+| BLIP-2 OPT-2.7B | 224×224 | ✓ | ✓ | ✓ | 3.8B |
+| BLIP-2 FlanT5-XXL | 224×224 | ✓ | ✓ | ✓ | 15.5B |
+
+## Further Resources
+
+- [CLIP Paper](https://arxiv.org/abs/2103.00020)
+- [BLIP-2 Paper](https://arxiv.org/abs/2301.12597)
+- [Hugging Face Transformers](https://huggingface.co/docs/transformers)
+- [Sentence Transformers](https://www.sbert.net/)
+- [OpenAI CLIP](https://github.com/openai/CLIP)

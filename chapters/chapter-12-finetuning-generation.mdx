@@ -1,0 +1,510 @@
+---
+title: "Fine-Tuning Generation Models"
+description: "Master the two-step approach for fine-tuning generative LLMs using Supervised Fine-Tuning (SFT) and Direct Preference Optimization (DPO) with QLoRA."
+---
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter12/Chapter%2012%20-%20Fine-tuning%20Generation%20Models.ipynb)
+
+## Overview
+
+This chapter explores a two-step approach for fine-tuning generative LLMs:
+1. **Supervised Fine-Tuning (SFT)**: Teach the model to follow instructions
+2. **Direct Preference Optimization (DPO)**: Align outputs with human preferences
+
+We'll use QLoRA for memory-efficient training on consumer GPUs.
+
+<Note>
+Use a GPU with at least 15GB VRAM. In Google Colab, select **Runtime > Change runtime type > Hardware accelerator > GPU > GPU type > T4**.
+</Note>
+
+## When to Fine-Tune Generation Models
+
+Fine-tune generative models when:
+
+- You need specific output formats or styles
+- Domain-specific knowledge is required
+- You want to align with specific preferences or guidelines
+- Base models don't follow instructions well enough
+- You have quality instruction-response pairs
+
+## Step 1: Supervised Fine-Tuning (SFT)
+
+### Data Preprocessing
+
+Format data using the model's chat template:
+
+```python
+from transformers import AutoTokenizer
+from datasets import load_dataset
+
+# Load tokenizer with chat template
+template_tokenizer = AutoTokenizer.from_pretrained(
+    "TinyLlama/TinyLlama-1.1B-Chat-v1.0"
+)
+
+def format_prompt(example):
+    """Format the prompt using the <|user|> template TinyLlama uses"""
+    chat = example["messages"]
+    prompt = template_tokenizer.apply_chat_template(chat, tokenize=False)
+    return {"text": prompt}
+
+# Load and format the data
+dataset = (
+    load_dataset("HuggingFaceH4/ultrachat_200k", split="test_sft")
+    .shuffle(seed=42)
+    .select(range(3_000))
+)
+dataset = dataset.map(format_prompt)
+```
+
+**Formatted example:**
+```
+<|user|>
+Given the text: Knock, knock. Who's there? Hike.
+Can you continue the joke based on the given text material?</s>
+<|assistant|>
+Sure! Knock, knock. Who's there? Hike. Hike who? 
+Hike up your pants, it's cold outside!</s>
+<|user|>
+Can you tell me another knock-knock joke based on the same text?</s>
+<|assistant|>
+Of course! Knock, knock. Who's there? Hike. Hike who? 
+Hike your way over here and let's go for a walk!</s>
+```
+
+### Model Setup with QLoRA
+
+<Tip>
+QLoRA combines 4-bit quantization with LoRA for efficient fine-tuning on limited hardware.
+</Tip>
+
+```python
+import torch
+from transformers import AutoModelForCausalLM, BitsAndBytesConfig
+
+model_name = "TinyLlama/TinyLlama-1.1B-intermediate-step-1431k-3T"
+
+# 4-bit quantization configuration - Q in QLoRA
+bnb_config = BitsAndBytesConfig(
+    load_in_4bit=True,              # Use 4-bit precision
+    bnb_4bit_quant_type="nf4",      # NormalFloat4 quantization
+    bnb_4bit_compute_dtype="float16",  # Compute in fp16
+    bnb_4bit_use_double_quant=True,    # Nested quantization
+)
+
+# Load model with quantization
+model = AutoModelForCausalLM.from_pretrained(
+    model_name,
+    device_map="auto",
+    quantization_config=bnb_config,
+)
+model.config.use_cache = False
+model.config.pretraining_tp = 1
+
+# Load tokenizer
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+tokenizer.pad_token = "<PAD>"
+tokenizer.padding_side = "left"
+```
+
+### LoRA Configuration
+
+```python
+from peft import LoraConfig, prepare_model_for_kbit_training, get_peft_model
+
+# Prepare LoRA Configuration
+peft_config = LoraConfig(
+    lora_alpha=32,           # LoRA scaling factor
+    lora_dropout=0.1,        # Dropout for LoRA layers
+    r=64,                    # Rank (number of trainable parameters)
+    bias="none",
+    task_type="CAUSAL_LM",
+    target_modules=[         # Which layers to adapt
+        'k_proj', 'gate_proj', 'v_proj', 
+        'up_proj', 'q_proj', 'o_proj', 'down_proj'
+    ]
+)
+
+# Prepare model for training
+model = prepare_model_for_kbit_training(model)
+model = get_peft_model(model, peft_config)
+```
+
+### Training Configuration
+
+```python
+from transformers import TrainingArguments
+
+output_dir = "./results"
+
+# Training arguments
+training_arguments = TrainingArguments(
+    output_dir=output_dir,
+    per_device_train_batch_size=2,
+    gradient_accumulation_steps=4,  # Effective batch = 2 * 4 = 8
+    optim="paged_adamw_32bit",
+    learning_rate=2e-4,
+    lr_scheduler_type="cosine",
+    num_train_epochs=1,
+    logging_steps=10,
+    fp16=True,
+    gradient_checkpointing=True
+)
+```
+
+### SFT Training
+
+```python
+from trl import SFTTrainer
+
+# Set supervised fine-tuning parameters
+trainer = SFTTrainer(
+    model=model,
+    train_dataset=dataset,
+    dataset_text_field="text",
+    tokenizer=tokenizer,
+    args=training_arguments,
+    max_seq_length=512,
+    peft_config=peft_config,
+)
+
+# Train model
+trainer.train()
+
+# Save QLoRA weights
+trainer.model.save_pretrained("TinyLlama-1.1B-qlora")
+```
+
+**Training progress (375 steps):**
+```
+Step   Loss
+  10   1.671
+  50   1.478
+ 100   1.404
+ 150   1.347
+ 200   1.475
+ 250   1.354
+ 300   1.376
+ 350   1.314
+ Final  ~1.40
+```
+
+**Training metrics:**
+```python
+{
+  'train_runtime': 765.0,
+  'train_samples_per_second': 93.3,
+  'train_loss': 1.40,
+  'epoch': 1.0
+}
+```
+
+## Step 2: Preference Tuning (DPO)
+
+### DPO Dataset Preparation
+
+```python
+def format_prompt(example):
+    """Format for DPO with system, prompt, chosen, and rejected"""
+    system = "<|system|>\n" + example['system'] + "</s>\n"
+    prompt = "<|user|>\n" + example['input'] + "</s>\n<|assistant|>\n"
+    chosen = example['chosen'] + "</s>\n"
+    rejected = example['rejected'] + "</s>\n"
+    
+    return {
+        "prompt": system + prompt,
+        "chosen": chosen,
+        "rejected": rejected,
+    }
+
+# Load preference dataset
+dpo_dataset = load_dataset(
+    "argilla/distilabel-intel-orca-dpo-pairs", 
+    split="train"
+)
+
+# Filter for high-quality preferences
+dpo_dataset = dpo_dataset.filter(
+    lambda r:
+        r["status"] != "tie" and
+        r["chosen_score"] >= 8 and
+        not r["in_gsm8k_train"]
+)
+dpo_dataset = dpo_dataset.map(format_prompt)
+```
+
+**Dataset statistics:**
+- Filtered examples: 5,922
+- Format: prompt, chosen response, rejected response
+
+### Load SFT Model
+
+```python
+from peft import AutoPeftModelForCausalLM
+
+# Merge LoRA and base model from SFT
+model = AutoPeftModelForCausalLM.from_pretrained(
+    "TinyLlama-1.1B-qlora",
+    low_cpu_mem_usage=True,
+    device_map="auto",
+    quantization_config=bnb_config,
+)
+merged_model = model.merge_and_unload()
+```
+
+### DPO Training Configuration
+
+```python
+from trl import DPOConfig, DPOTrainer
+
+# DPO-specific arguments
+training_arguments = DPOConfig(
+    output_dir="./dpo_results",
+    per_device_train_batch_size=2,
+    gradient_accumulation_steps=4,
+    optim="paged_adamw_32bit",
+    learning_rate=1e-5,           # Lower than SFT
+    lr_scheduler_type="cosine",
+    max_steps=200,
+    logging_steps=10,
+    fp16=True,
+    gradient_checkpointing=True,
+    warmup_ratio=0.1
+)
+
+# Create DPO trainer
+dpo_trainer = DPOTrainer(
+    model,
+    args=training_arguments,
+    train_dataset=dpo_dataset,
+    tokenizer=tokenizer,
+    peft_config=peft_config,
+    beta=0.1,                      # KL divergence weight
+    max_prompt_length=512,
+    max_length=512,
+)
+
+# Fine-tune with DPO
+dpo_trainer.train()
+
+# Save adapter
+dpo_trainer.model.save_pretrained("TinyLlama-1.1B-dpo-qlora")
+```
+
+**DPO training progress (200 steps):**
+```
+Step   Loss
+  10   0.692
+  40   0.606
+  80   0.532
+ 120   0.586
+ 160   0.591
+ 200   0.555
+```
+
+<Note>
+DPO loss starts higher than SFT and decreases more gradually as the model learns preferences.
+</Note>
+
+### Merge Adapters
+
+```python
+from peft import PeftModel
+
+# Merge SFT LoRA and base model
+model = AutoPeftModelForCausalLM.from_pretrained(
+    "TinyLlama-1.1B-qlora",
+    low_cpu_mem_usage=True,
+    device_map="auto",
+)
+sft_model = model.merge_and_unload()
+
+# Merge DPO LoRA and SFT model
+dpo_model = PeftModel.from_pretrained(
+    sft_model,
+    "TinyLlama-1.1B-dpo-qlora",
+    device_map="auto",
+)
+dpo_model = dpo_model.merge_and_unload()
+```
+
+### Inference
+
+```python
+from transformers import pipeline
+
+# Use predefined prompt template
+prompt = """<|user|>
+Tell me something about Large Language Models.</s>
+<|assistant|>
+"""
+
+# Run fine-tuned model
+pipe = pipeline(task="text-generation", model=dpo_model, tokenizer=tokenizer)
+output = pipe(prompt)[0]["generated_text"]
+print(output)
+```
+
+**Sample output:**
+```
+Large Language Models (LLMs) are a type of artificial intelligence 
+that can generate human-like language. They are trained on large amounts 
+of data, including text, audio, and video, and are capable of generating 
+complex and nuanced language.
+
+LLMs are used in a variety of applications, including natural language 
+processing (NLP), machine translation, and chatbots. They can be used to 
+generate text, speech, or images, and can be trained to understand 
+different languages and dialects.
+
+One of the most significant applications of LLMs is in natural language 
+generation (NLG). LLMs can be used to generate text in various languages, 
+including English, French, and German.
+```
+
+## Two-Step Training Comparison
+
+<Steps>
+
+<Step title="Supervised Fine-Tuning">
+**Purpose**: Learn instruction following and task completion
+
+**Data**: Instruction-response pairs
+
+**Loss**: Cross-entropy on next token prediction
+
+**Result**: Model can follow instructions but may not align with preferences
+</Step>
+
+<Step title="Direct Preference Optimization">
+**Purpose**: Align with human preferences and quality standards
+
+**Data**: Prompt with chosen/rejected response pairs
+
+**Loss**: DPO loss encouraging chosen over rejected
+
+**Result**: Model generates preferred outputs matching human judgment
+</Step>
+
+</Steps>
+
+## QLoRA Benefits
+
+| Metric | Full Fine-Tuning | QLoRA |
+|--------|-----------------|--------|
+| GPU Memory | ~40GB | ~8GB |
+| Trainable Params | 1.1B (100%) | ~17M (1.5%) |
+| Training Speed | Baseline | 0.7x |
+| Final Quality | Baseline | ~95% |
+
+## Hyperparameters Guide
+
+### SFT Hyperparameters
+
+```python
+learning_rate=2e-4          # Higher for initial adaptation
+num_train_epochs=1-3        # Avoid overfitting
+warmup_steps=100           # Stabilize training
+lora_rank=64               # Balance capacity/efficiency
+lora_alpha=32              # Scaling factor (typically rank/2)
+```
+
+### DPO Hyperparameters
+
+```python
+learning_rate=1e-5          # Lower to preserve SFT learning
+max_steps=200-500          # Fewer steps than SFT
+beta=0.1                   # KL penalty (0.1-0.5)
+warmup_ratio=0.1           # 10% warmup
+```
+
+## Best Practices
+
+<Steps>
+
+<Step title="Data Quality">
+- Use diverse, high-quality instruction data
+- Ensure chat template consistency
+- Filter low-quality responses
+- Balance different task types
+</Step>
+
+<Step title="QLoRA Configuration">
+```python
+# Optimal LoRA settings for LLMs
+lora_rank=64               # Sweet spot for most models
+target_modules=[           # Target all attention layers
+    'q_proj', 'k_proj', 'v_proj', 'o_proj',
+    'gate_proj', 'up_proj', 'down_proj'
+]
+```
+</Step>
+
+<Step title="Training Stability">
+- Monitor loss curves for smooth descent
+- Use gradient checkpointing for memory
+- Enable fp16 mixed precision
+- Start with lower learning rates if unstable
+</Step>
+
+<Step title="Evaluation">
+- Test on held-out examples
+- Compare base vs SFT vs DPO outputs
+- Evaluate instruction following quality
+- Check for catastrophic forgetting
+</Step>
+
+</Steps>
+
+<Warning>
+Avoid these common mistakes:
+
+- **Overfitting**: Monitor validation loss, stop early
+- **Wrong template**: Use exact chat format from pre-training
+- **High learning rate**: Can destabilize the model
+- **Insufficient warmup**: Causes training instability
+</Warning>
+
+## Memory Optimization
+
+### For Limited VRAM
+
+```python
+# Reduce batch size
+per_device_train_batch_size=1
+gradient_accumulation_steps=8
+
+# Enable all optimizations
+gradient_checkpointing=True
+optim="paged_adamw_8bit"     # Use 8-bit optimizer
+max_seq_length=256           # Reduce sequence length
+```
+
+### For Faster Training
+
+```python
+# Increase batch size if memory allows
+per_device_train_batch_size=4
+gradient_accumulation_steps=2
+
+# Use efficient attention
+attn_implementation="flash_attention_2"  # If available
+```
+
+## Training Time Estimates
+
+**SFT (3,000 examples on T4):**
+- With QLoRA: ~13 minutes
+- Full fine-tuning: ~45 minutes
+
+**DPO (5,922 examples on T4):**
+- With QLoRA: ~13 minutes  
+- Full fine-tuning: ~40 minutes
+
+## Next Steps
+
+- Experiment with larger models (7B, 13B parameters)
+- Try different LoRA ranks (8, 16, 32, 64)
+- Implement PPO for more complex preference learning
+- Use RLHF for human-in-the-loop refinement
+- Evaluate with LM Eval Harness or MT-Bench

@@ -1,0 +1,534 @@
+---
+title: 'Chapter 7: Advanced Text Generation Techniques and Tools'
+description: 'Going beyond prompt engineering with chains, memory, and agents'
+---
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter07/Chapter%207%20-%20Advanced%20Text%20Generation%20Techniques%20and%20Tools.ipynb)
+
+This chapter moves beyond prompt engineering to explore advanced tools and techniques for building sophisticated LLM applications. You'll learn how to chain operations, maintain conversation memory, and create autonomous agents using LangChain.
+
+## Overview
+
+Building production LLM applications requires more than just good prompts. This chapter covers:
+
+- **Chains**: Composing multiple LLM calls into pipelines
+- **Memory**: Maintaining context across conversations
+- **Agents**: Building autonomous systems that use tools
+
+## Setting Up
+
+<Note>
+To run the examples in this chapter, you'll need a GPU. In Google Colab, go to **Runtime > Change runtime type > Hardware accelerator > GPU > GPU type > T4**.
+</Note>
+
+<CodeGroup>
+```python Dependencies
+# Install required packages
+!pip install langchain>=0.1.17 openai>=1.13.3 langchain_openai>=0.1.6 \
+    transformers>=4.40.1 datasets>=2.18.0 accelerate>=0.27.2 \
+    sentence-transformers>=2.5.1 duckduckgo-search>=5.2.2 langchain_community
+!CMAKE_ARGS="-DLLAMA_CUDA=on" pip install llama-cpp-python==0.2.69
+```
+
+```python Download Model
+# Download Phi-3 model (GGUF format for llama.cpp)
+!wget https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-fp16.gguf
+```
+</CodeGroup>
+
+### Loading the LLM with LangChain
+
+```python
+from langchain import LlamaCpp
+
+# Load Phi-3 model
+llm = LlamaCpp(
+    model_path="Phi-3-mini-4k-instruct-fp16.gguf",
+    n_gpu_layers=-1,
+    max_tokens=500,
+    n_ctx=2048,
+    seed=42,
+    verbose=False
+)
+
+# Test the model
+llm.invoke("Hi! My name is Maarten. What is 1 + 1?")
+# Output: ''
+```
+
+<Warning>
+Without proper templating, the model may not respond correctly. This is why chains with prompt templates are essential.
+</Warning>
+
+## Chains
+
+Chains allow you to compose multiple operations together, creating reusable pipelines for LLM interactions.
+
+### Basic Chain with Prompt Template
+
+<Steps>
+  <Step title="Create Prompt Template">
+    ```python
+    from langchain import PromptTemplate
+    
+    # Create a prompt template with the Phi-3 chat format
+    template = """<s><|user|>
+{input_prompt}<|end|>
+<|assistant|>"""
+    
+    prompt = PromptTemplate(
+        template=template,
+        input_variables=["input_prompt"]
+    )
+    ```
+  </Step>
+  
+  <Step title="Chain with LLM">
+    ```python
+    # Use the pipe operator to chain prompt and LLM
+    basic_chain = prompt | llm
+    ```
+  </Step>
+  
+  <Step title="Invoke Chain">
+    ```python
+    basic_chain.invoke({
+        "input_prompt": "Hi! My name is Maarten. What is 1 + 1?",
+    })
+    # Output: ' Hello Maarten, the answer to 1 + 1 is 2.'
+    ```
+  </Step>
+</Steps>
+
+### Multiple Chains: Building a Story Generator
+
+Chain multiple LLM calls together to create complex workflows:
+
+```python
+from langchain import LLMChain
+
+# Chain 1: Generate title
+template = """<s><|user|>
+Create a title for a story about {summary}. Only return the title.<|end|>
+<|assistant|>"""
+title_prompt = PromptTemplate(template=template, input_variables=["summary"])
+title = LLMChain(llm=llm, prompt=title_prompt, output_key="title")
+
+# Chain 2: Describe main character
+template = """<s><|user|>
+Describe the main character of a story about {summary} with the title {title}. Use only two sentences.<|end|>
+<|assistant|>"""
+character_prompt = PromptTemplate(
+    template=template, input_variables=["summary", "title"]
+)
+character = LLMChain(llm=llm, prompt=character_prompt, output_key="character")
+
+# Chain 3: Write the story
+template = """<s><|user|>
+Create a story about {summary} with the title {title}. The main charachter is: {character}. Only return the story and it cannot be longer than one paragraph<|end|>
+<|assistant|>"""
+story_prompt = PromptTemplate(
+    template=template, input_variables=["summary", "title", "character"]
+)
+story = LLMChain(llm=llm, prompt=story_prompt, output_key="story")
+
+# Combine all three chains
+llm_chain = title | character | story
+```
+
+Run the complete chain:
+
+```python
+result = llm_chain.invoke("a girl that lost her mother")
+print(result)
+```
+
+Output:
+```json
+{
+  "summary": "a girl that lost her mother",
+  "title": " \"In Loving Memory: A Journey Through Grief\"",
+  "character": " The protagonist, Emily, is a resilient young girl who struggles to cope with her overwhelming grief after losing her beloved and caring mother at an early age. As she embarks on a journey of self-discovery and healing, she learns valuable life lessons from the memories and wisdom shared by those around her.",
+  "story": " In Loving Memory: A Journey Through Grief revolves around Emily, a resilient young girl who loses her beloved mother at an early age. Struggling to cope with overwhelming grief, she embarks on a journey of self-discovery and healing, drawing strength from the cherished memories and wisdom shared by those around her. Through this transformative process, Emily learns valuable life lessons about resilience, love, and the power of human connection, ultimately finding solace in honoring her mother's legacy while embracing a newfound sense of inner peace amidst the painful loss."
+}
+```
+
+<Tip>
+Chains with multiple steps allow you to break complex generation tasks into manageable pieces, with each step building on previous outputs.
+</Tip>
+
+## Memory
+
+By default, LLMs are stateless—they don't remember previous interactions. Memory systems solve this problem.
+
+### The Problem: No Memory
+
+```python
+# First interaction
+basic_chain.invoke({"input_prompt": "Hi! My name is Maarten. What is 1 + 1?"})
+# Output: ' Hello Maarten! The answer to 1 + 1 is 2.'
+
+# Second interaction - model doesn't remember
+basic_chain.invoke({"input_prompt": "What is my name?"})
+# Output: " I'm unable to determine your name as I don't have the capability to access personal data..."
+```
+
+### ConversationBufferMemory
+
+Store all conversation history:
+
+<Steps>
+  <Step title="Update Prompt Template">
+    ```python
+    # Add chat_history to the template
+    template = """<s><|user|>Current conversation:{chat_history}
+
+{input_prompt}<|end|>
+<|assistant|>"""
+    
+    prompt = PromptTemplate(
+        template=template,
+        input_variables=["input_prompt", "chat_history"]
+    )
+    ```
+  </Step>
+  
+  <Step title="Add Memory">
+    ```python
+    from langchain.memory import ConversationBufferMemory
+    
+    # Define buffer memory
+    memory = ConversationBufferMemory(memory_key="chat_history")
+    
+    # Chain with memory
+    llm_chain = LLMChain(
+        prompt=prompt,
+        llm=llm,
+        memory=memory
+    )
+    ```
+  </Step>
+  
+  <Step title="Test Memory">
+    ```python
+    # First interaction
+    llm_chain.invoke({"input_prompt": "Hi! My name is Maarten. What is 1 + 1?"})
+    # Output: " Hello Maarten! The answer to 1 + 1 is 2. Hope you're having a great day!"
+    
+    # Second interaction - now it remembers!
+    llm_chain.invoke({"input_prompt": "What is my name?"})
+    # Output: ' Your name is Maarten.'
+    ```
+  </Step>
+</Steps>
+
+### ConversationBufferWindowMemory
+
+Retain only recent conversations to limit context size:
+
+```python
+from langchain.memory import ConversationBufferWindowMemory
+
+# Retain only the last 2 conversations
+memory = ConversationBufferWindowMemory(k=2, memory_key="chat_history")
+
+llm_chain = LLMChain(
+    prompt=prompt,
+    llm=llm,
+    memory=memory
+)
+
+# Ask multiple questions
+llm_chain.invoke({"input_prompt": "Hi! My name is Maarten and I am 33 years old. What is 1 + 1?"})
+llm_chain.invoke({"input_prompt": "What is 3 + 3?"})
+llm_chain.invoke({"input_prompt": "What is my name?"})
+# Output: ' Your name is Maarten.'
+
+# But older information is forgotten
+llm_chain.invoke({"input_prompt": "What is my age?"})
+# Output: " I'm unable to determine your age as I don't have access to personal information..."
+```
+
+<Note>
+Window memory is useful for managing context length while maintaining recent conversation history. Adjust `k` based on your needs.
+</Note>
+
+### ConversationSummaryMemory
+
+Summarize conversation history to save tokens:
+
+<Steps>
+  <Step title="Create Summary Prompt">
+    ```python
+    # Template for summarizing conversations
+    summary_prompt_template = """<s><|user|>Summarize the conversations and update with the new lines.
+
+Current summary:
+{summary}
+
+new lines of conversation:
+{new_lines}
+
+New summary:<|end|>
+<|assistant|>"""
+    
+    summary_prompt = PromptTemplate(
+        input_variables=["new_lines", "summary"],
+        template=summary_prompt_template
+    )
+    ```
+  </Step>
+  
+  <Step title="Add Summary Memory">
+    ```python
+    from langchain.memory import ConversationSummaryMemory
+    
+    memory = ConversationSummaryMemory(
+        llm=llm,
+        memory_key="chat_history",
+        prompt=summary_prompt
+    )
+    
+    llm_chain = LLMChain(
+        prompt=prompt,
+        llm=llm,
+        memory=memory
+    )
+    ```
+  </Step>
+  
+  <Step title="Test Summarization">
+    ```python
+    llm_chain.invoke({"input_prompt": "Hi! My name is Maarten. What is 1 + 1?"})
+    llm_chain.invoke({"input_prompt": "What is my name?"})
+    llm_chain.invoke({"input_prompt": "What was the first question I asked?"})
+    # Output: ' The first question you asked was "what's 1 + 1?"'
+    
+    # Check the summary
+    memory.load_memory_variables({})
+    # Output: {'chat_history': ' Maarten, identified in this conversation, initially asked about the sum of 1+1...'}
+    ```
+  </Step>
+</Steps>
+
+<Tip>
+Summary memory is ideal for long conversations where you need to maintain context without overwhelming the model's context window.
+</Tip>
+
+## Agents
+
+Agents can autonomously decide which tools to use and in what order, enabling them to solve complex tasks that require multiple steps and external information.
+
+### Setting Up an Agent
+
+<Steps>
+  <Step title="Configure OpenAI">
+    ```python
+    import os
+    from langchain_openai import ChatOpenAI
+    
+    # Load OpenAI's LLMs
+    os.environ["OPENAI_API_KEY"] = "YOUR_KEY_HERE"
+    openai_llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
+    ```
+  </Step>
+  
+  <Step title="Create ReAct Prompt Template">
+    ```python
+    # ReAct (Reasoning + Acting) template
+    react_template = """Answer the following questions as best you can. You have access to the following tools:
+
+{tools}
+
+Use the following format:
+
+Question: the input question you must answer
+Thought: you should always think about what to do
+Action: the action to take, should be one of [{tool_names}]
+Action Input: the input to the action
+Observation: the result of the action
+... (this Thought/Action/Action Input/Observation can repeat N times)
+Thought: I now know the final answer
+Final Answer: the final answer to the original input question
+
+Begin!
+
+Question: {input}
+Thought:{agent_scratchpad}"""
+    
+    prompt = PromptTemplate(
+        template=react_template,
+        input_variables=["tools", "tool_names", "input", "agent_scratchpad"]
+    )
+    ```
+  </Step>
+  
+  <Step title="Prepare Tools">
+    ```python
+    from langchain.agents import load_tools, Tool
+    from langchain.tools import DuckDuckGoSearchResults
+    
+    # Web search tool
+    search = DuckDuckGoSearchResults()
+    search_tool = Tool(
+        name="duckduck",
+        description="A web search engine. Use this to as a search engine for general queries.",
+        func=search.run,
+    )
+    
+    # Math calculator tool
+    tools = load_tools(["llm-math"], llm=openai_llm)
+    tools.append(search_tool)
+    ```
+  </Step>
+  
+  <Step title="Create Agent Executor">
+    ```python
+    from langchain.agents import AgentExecutor, create_react_agent
+    
+    # Construct the ReAct agent
+    agent = create_react_agent(openai_llm, tools, prompt)
+    agent_executor = AgentExecutor(
+        agent=agent, 
+        tools=tools, 
+        verbose=True, 
+        handle_parsing_errors=True
+    )
+    ```
+  </Step>
+</Steps>
+
+### Running an Agent
+
+Ask the agent a complex question requiring multiple tools:
+
+```python
+agent_executor.invoke({
+    "input": "What is the current price of a MacBook Pro in USD? How much would it cost in EUR if the exchange rate is 0.85 EUR for 1 USD?"
+})
+```
+
+Agent execution trace:
+
+```
+> Entering new AgentExecutor chain...
+I need to find the current price of a MacBook Pro in USD first before converting it to EUR.
+Action: duckduck
+Action Input: "current price of MacBook Pro in USD"
+
+[Search results showing MacBook Pro prices around $2,249.00]
+
+I found the current price of a MacBook Pro in USD, now I need to convert it to EUR using the exchange rate.
+Action: Calculator
+Action Input: $2,249.00 * 0.85
+
+Answer: 1911.6499999999999
+
+I now know the final answer
+Final Answer: The current price of a MacBook Pro in USD is $2,249.00. It would cost approximately 1911.65 EUR with an exchange rate of 0.85 EUR for 1 USD.
+
+> Finished chain.
+```
+
+<Note>
+The agent autonomously decided to:
+1. Search the web for MacBook Pro prices
+2. Use the calculator tool to perform currency conversion
+3. Combine results into a final answer
+
+This is the power of agentic systems!
+</Note>
+
+## Comparison of Techniques
+
+<Tabs>
+  <Tab title="Chains">
+    **When to use:**
+    - Predictable, sequential workflows
+    - Multiple steps that always execute in the same order
+    - Building complex outputs from simpler components
+    
+    **Example use cases:**
+    - Story generation (title → character → story)
+    - Document processing pipelines
+    - Multi-step transformations
+  </Tab>
+  
+  <Tab title="Memory">
+    **When to use:**
+    - Conversational applications
+    - When context from previous interactions matters
+    - Chatbots and assistants
+    
+    **Memory types:**
+    - **Buffer**: Full history (use for short conversations)
+    - **Window**: Recent history (use for medium-length chats)
+    - **Summary**: Compressed history (use for long conversations)
+  </Tab>
+  
+  <Tab title="Agents">
+    **When to use:**
+    - Dynamic decision-making needed
+    - Multiple tools available
+    - Tasks requiring external information
+    - Unpredictable workflows
+    
+    **Example use cases:**
+    - Research assistants
+    - Data analysis tasks
+    - Multi-step problem solving with tool selection
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<Steps>
+  <Step title="Start with Chains">
+    Begin with simple chains for predictable workflows before adding complexity.
+  </Step>
+  
+  <Step title="Choose Appropriate Memory">
+    - Use **Buffer** for short conversations
+    - Use **Window** for medium-length interactions  
+    - Use **Summary** for long-running conversations
+  </Step>
+  
+  <Step title="Design Clear Tool Descriptions">
+    Agents rely on tool descriptions to make decisions. Make them clear and specific.
+  </Step>
+  
+  <Step title="Monitor Agent Behavior">
+    Use `verbose=True` during development to understand agent decision-making.
+  </Step>
+  
+  <Step title="Handle Errors Gracefully">
+    Set `handle_parsing_errors=True` for agents to manage unexpected outputs.
+  </Step>
+  
+  <Step title="Test Incrementally">
+    Build and test each component (prompt, chain, memory, tool) independently before combining.
+  </Step>
+</Steps>
+
+## Key Takeaways
+
+- **Chains** compose multiple LLM calls into reusable pipelines with prompt templates
+- **Memory systems** enable stateful conversations:
+  - Buffer memory stores full history
+  - Window memory retains recent interactions
+  - Summary memory compresses long conversations
+- **Agents** autonomously select and use tools based on ReAct prompting
+- LangChain provides a unified framework for building these advanced patterns
+- Choose the right tool for your use case: chains for predictable workflows, memory for conversations, agents for dynamic problem-solving
+
+## Next Steps
+
+Now that you understand chains, memory, and agents, you can:
+- Build multi-step LLM applications with chains
+- Create conversational interfaces with memory
+- Develop autonomous systems with agents and tools
+- Combine these techniques for sophisticated LLM-powered applications
+
+<Tip>
+The techniques in this chapter form the foundation for production LLM applications. Master these patterns before building more complex systems.
+</Tip>

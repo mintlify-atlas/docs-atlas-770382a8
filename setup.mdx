@@ -1,0 +1,426 @@
+---
+title: Environment Setup
+description: Complete guide to setting up your development environment for working with the Hands-On Large Language Models code examples
+---
+
+## Overview
+
+This guide will help you set up your environment to run all the code examples from the book. We provide multiple setup options to accommodate different preferences and hardware configurations.
+
+<Note>
+**Recommended for Beginners**: We strongly recommend using Google Colab for the easiest setup. All examples in the book were built and tested using Google Colab with a free T4 GPU (16GB VRAM).
+</Note>
+
+## Setup Options
+
+You can choose from three main approaches:
+
+1. **Cloud-based (Recommended)**: Google Colab with free GPU access
+2. **Local with Conda**: Full control with version-managed environment
+3. **Local with pip**: Quick setup if you already have Python 3.10
+
+---
+
+## Cloud Setup (Google Colab)
+
+Google Colab provides free access to GPUs and comes with most dependencies pre-installed, making it the most stable and hassle-free option.
+
+<Steps>
+  <Step title="Open a Chapter Notebook">
+    Click on any "Open in Colab" badge from the [book's repository](https://github.com/HandsOnLLM/Hands-On-Large-Language-Models) table of contents.
+  </Step>
+  
+  <Step title="Enable GPU Runtime">
+    In Google Colab, navigate to:
+    
+    **Runtime → Change runtime type → Hardware accelerator → GPU → GPU type → T4**
+  </Step>
+  
+  <Step title="Install Chapter Dependencies">
+    Each notebook includes an installation cell at the top. Uncomment and run it to install required packages.
+    
+    For example, Chapter 1 requires:
+    ```python
+    !pip install transformers==4.41.2 accelerate==0.31.0
+    ```
+  </Step>
+  
+  <Step title="Run the Notebook">
+    Execute cells sequentially to follow along with the book examples.
+  </Step>
+</Steps>
+
+<Tip>
+Google Colab's free tier includes:
+- NVIDIA T4 GPU with 16GB VRAM
+- 12GB RAM
+- Session timeout after ~12 hours of inactivity
+</Tip>
+
+---
+
+## Local Setup with Conda
+
+Conda provides the most reliable local setup with full version control and dependency management. This method does **not** require separate C++ compiler installation.
+
+### Prerequisites
+
+- **Storage**: At least 10GB free disk space
+- **RAM**: 8GB minimum (16GB recommended)
+- **GPU**: NVIDIA GPU with CUDA support (optional but highly recommended)
+
+<Steps>
+  <Step title="Install Miniconda">
+    Download and install [Miniconda](https://docs.anaconda.com/free/miniconda/miniconda-other-installer-links/) with Python 3.10 for your operating system.
+    
+    <CodeGroup>
+    ```bash Windows
+    # Download installer from:
+    # https://docs.anaconda.com/free/miniconda/miniconda-other-installer-links/
+    # Select: Miniconda3 Windows 64-bit with Python 3.10
+    ```
+    
+    ```bash Linux
+    wget https://repo.anaconda.com/miniconda/Miniconda3-py310_*-Linux-x86_64.sh
+    bash Miniconda3-py310_*-Linux-x86_64.sh
+    ```
+    
+    ```bash macOS
+    curl -O https://repo.anaconda.com/miniconda/Miniconda3-py310_*-MacOSX-x86_64.sh
+    bash Miniconda3-py310_*-MacOSX-x86_64.sh
+    ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Create Conda Environment">
+    Open your terminal and create a new environment named `thellmbook`:
+    
+    ```bash
+    conda create -n thellmbook python=3.10
+    ```
+  </Step>
+  
+  <Step title="Activate Environment">
+    Activate the newly created environment:
+    
+    ```bash
+    conda activate thellmbook
+    ```
+  </Step>
+  
+  <Step title="Install Dependencies">
+    Clone the repository and install dependencies:
+    
+    <CodeGroup>
+    ```bash Using environment.yml (Recommended)
+    # Clone the repository
+    git clone https://github.com/HandsOnLLM/Hands-On-Large-Language-Models.git
+    cd Hands-On-Large-Language-Models
+    
+    # Install all dependencies at once
+    conda env create -f environment.yml
+    ```
+    
+    ```bash Using requirements.txt
+    # Clone the repository
+    git clone https://github.com/HandsOnLLM/Hands-On-Large-Language-Models.git
+    cd Hands-On-Large-Language-Models
+    
+    # Upgrade pip first
+    pip install --upgrade pip
+    
+    # Install dependencies
+    pip install -r requirements.txt
+    ```
+    
+    ```bash Minimal Installation
+    # Install only core dependencies
+    pip install -r requirements_base.txt
+    
+    # Install chapter-specific packages as needed
+    # See each chapter's README for details
+    ```
+    </CodeGroup>
+  </Step>
+  
+  <Step title="Install PyTorch with GPU Support">
+    Visit [pytorch.org](https://pytorch.org/) and select your configuration to get the appropriate installation command.
+    
+    For CUDA 11.8 (most common):
+    ```bash
+    pip3 install --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+    ```
+    
+    <Note>
+    The `--upgrade` flag ensures the CPU version is replaced with the GPU version.
+    </Note>
+  </Step>
+  
+  <Step title="Verify GPU Access">
+    Test that PyTorch can access your GPU:
+    
+    ```python
+    import torch
+    print(torch.cuda.is_available())  # Should return True
+    print(torch.cuda.get_device_name(0))  # Shows your GPU model
+    ```
+  </Step>
+  
+  <Step title="Start JupyterLab">
+    Launch JupyterLab to run the notebooks:
+    
+    ```bash
+    jupyter lab
+    ```
+    
+    Make sure to select the `thellmbook` kernel (ipykernel) in the top-right corner of each notebook.
+  </Step>
+</Steps>
+
+---
+
+## Local Setup with pip
+
+For users who already have Python 3.10 installed and want a quick setup.
+
+<Warning>
+This method requires [Microsoft Visual C++ 14.0 or greater](https://visualstudio.microsoft.com/visual-cpp-build-tools/) on Windows. See the [Troubleshooting](#troubleshooting) section if you encounter C++ errors.
+</Warning>
+
+<Steps>
+  <Step title="Verify Python Version">
+    Ensure you have Python 3.10 installed:
+    
+    ```bash
+    python --version  # Should show Python 3.10.x
+    ```
+  </Step>
+  
+  <Step title="Clone Repository">
+    ```bash
+    git clone https://github.com/HandsOnLLM/Hands-On-Large-Language-Models.git
+    cd Hands-On-Large-Language-Models
+    ```
+  </Step>
+  
+  <Step title="Install Dependencies">
+    ```bash
+    pip install --upgrade pip
+    pip install -r requirements.txt
+    ```
+  </Step>
+  
+  <Step title="Install PyTorch GPU">
+    Follow the same PyTorch installation steps from the [Conda setup](#local-setup-with-conda).
+  </Step>
+</Steps>
+
+---
+
+## Core Dependencies
+
+The following packages are required throughout the book:
+
+| Category | Packages | Purpose |
+|----------|----------|---------|
+| **Deep Learning** | `torch==2.3.1`<br/>`transformers==4.41.2`<br/>`sentence-transformers==3.0.1` | Core LLM framework |
+| **Data Processing** | `numpy==1.26.4`<br/>`pandas==2.2.2`<br/>`datasets==2.20.0` | Data manipulation |
+| **Visualization** | `matplotlib==3.9.0` | Plotting and visualization |
+| **ML Tools** | `scikit-learn==1.5.0`<br/>`evaluate==0.4.2`<br/>`scipy>=1.15.0` | Machine learning utilities |
+| **NLP** | `sentencepiece==0.2.0`<br/>`nltk==3.8.1` | Text processing |
+| **Environment** | `jupyterlab==4.2.2`<br/>`ipywidgets==8.1.3` | Interactive notebooks |
+
+### Chapter-Specific Dependencies
+
+Some chapters require additional packages:
+
+<CodeGroup>
+```bash Chapter 5: Topic Modeling
+pip install bertopic==0.16.3 datamapplot==0.3.0
+```
+
+```bash Chapter 7: Text Generation
+pip install llama-cpp-python==0.2.78 langchain==0.2.5
+```
+
+```bash Chapter 8: Semantic Search
+pip install faiss-cpu==1.8.0 annoy==1.17.3
+```
+
+```bash Chapter 10-12: Fine-tuning
+pip install peft==0.11.1 trl==0.9.4 accelerate==0.31.0 bitsandbytes==0.43.1
+```
+
+```bash API Access
+pip install openai==1.34.0 cohere==5.5.8
+```
+</CodeGroup>
+
+---
+
+## GPU Requirements
+
+While you can run some examples on CPU, most chapters require GPU acceleration for practical performance.
+
+### Minimum Requirements
+
+- **VRAM**: 4GB (6GB+ recommended)
+- **CUDA**: Version 11.8 or later
+- **GPU Examples**: NVIDIA RTX 3060, T4 (Colab), A10G, or better
+
+### Cloud Alternatives
+
+If you don't have a local GPU:
+
+| Platform | GPU Options | Free Tier | Notes |
+|----------|-------------|-----------|-------|
+| **Google Colab** | T4 (16GB) | ✅ Yes | Recommended, session limits |
+| **Kaggle** | P100 (16GB), T4 | ✅ Yes | 30 hours/week free |
+| **AWS SageMaker** | Various | 🟡 Limited | ml.t3.medium free tier |
+| **Azure ML** | Various | 🟡 Limited | Some free credits |
+| **Paperspace** | Various | ❌ No | Affordable hourly rates |
+
+---
+
+## Troubleshooting
+
+### "Microsoft Visual C++ 14.0 or greater is required"
+
+This error occurs on Windows when installing packages that need compilation.
+
+<Steps>
+  <Step title="Download Build Tools">
+    Visit [visualstudio.microsoft.com/visual-cpp-build-tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) and click "Download Build Tools".
+  </Step>
+  
+  <Step title="Run Installer">
+    Launch the installer and click "Continue" to prepare the installation.
+  </Step>
+  
+  <Step title="Select C++ Development">
+    Choose "Desktop development with C++" from the workload options.
+  </Step>
+  
+  <Step title="Install">
+    Click "Install" to install the necessary C++ tools.
+  </Step>
+  
+  <Step title="Retry pip install">
+    After installation completes, retry your `pip install` command.
+  </Step>
+</Steps>
+
+**Alternative**: Use the conda installation method, which doesn't require C++ build tools.
+
+### CUDA Not Available
+
+If `torch.cuda.is_available()` returns `False`:
+
+1. **Verify GPU drivers**: Update to the latest NVIDIA drivers
+   ```bash
+   nvidia-smi  # Should show your GPU
+   ```
+
+2. **Reinstall PyTorch**: Make sure you installed the CUDA version
+   ```bash
+   pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
+   ```
+
+3. **Check CUDA compatibility**: Your GPU must support CUDA 11.8 or later
+
+### Out of Memory Errors
+
+If you get CUDA out-of-memory errors:
+
+```python
+# Reduce batch size
+batch_size = 4  # Try 2 or 1 if still failing
+
+# Use gradient checkpointing
+model.gradient_checkpointing_enable()
+
+# Use mixed precision training
+from torch.cuda.amp import autocast
+with autocast():
+    # Your model code here
+```
+
+### Package Version Conflicts
+
+If you encounter version conflicts:
+
+<CodeGroup>
+```bash Use pinned versions
+# requirements.txt has exact versions that work together
+pip install -r requirements.txt
+```
+
+```bash Try latest versions
+# requirements_min.txt allows newer versions
+pip install -r requirements_min.txt
+```
+
+```bash Create fresh environment
+conda deactivate
+conda env remove -n thellmbook
+conda create -n thellmbook python=3.10
+conda activate thellmbook
+pip install -r requirements.txt
+```
+</CodeGroup>
+
+### JupyterLab Kernel Issues
+
+If JupyterLab doesn't show the correct kernel:
+
+```bash
+# Install ipykernel in your environment
+conda activate thellmbook
+pip install ipykernel
+python -m ipykernel install --user --name=thellmbook
+
+# Restart JupyterLab
+jupyter lab
+```
+
+### Import Errors
+
+If you get import errors:
+
+1. **Verify environment**: Make sure you're in the correct conda environment
+   ```bash
+   conda activate thellmbook
+   python -c "import sys; print(sys.executable)"
+   ```
+
+2. **Reinstall package**: Try reinstalling the problematic package
+   ```bash
+   pip uninstall package_name
+   pip install package_name==version
+   ```
+
+3. **Check dependencies**: Some packages need others to be installed first
+   ```bash
+   pip install -r requirements.txt  # Installs in correct order
+   ```
+
+---
+
+## Next Steps
+
+Once your environment is set up:
+
+1. Start with [Chapter 1: Introduction to Language Models](https://github.com/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter01/Chapter%201%20-%20Introduction%20to%20Language%20Models.ipynb)
+2. Review the [Prerequisites](/prerequisites) to ensure you have the necessary background
+3. Join the community discussions on [GitHub](https://github.com/HandsOnLLM/Hands-On-Large-Language-Models)
+
+<Tip>
+Save your environment configuration! After successfully setting up, you can export it:
+```bash
+# Conda users
+conda env export > my_environment.yml
+
+# pip users  
+pip freeze > my_requirements.txt
+```
+</Tip>

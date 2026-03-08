@@ -1,0 +1,433 @@
+---
+title: Prerequisites
+description: Required background knowledge and recommended preparatory resources for getting the most out of Hands-On Large Language Models
+---
+
+## Overview
+
+"Hands-On Large Language Models" is designed to be accessible to readers with a foundational understanding of Python and machine learning concepts. This page outlines what you should know before diving into the book and provides resources to help you prepare.
+
+<Note>
+Don't worry if you don't have all the prerequisites mastered! The book's visual learning approach with nearly 300 custom illustrations makes complex concepts easier to grasp, even for relative newcomers to the field.
+</Note>
+
+---
+
+## Required Knowledge
+
+### Python Programming
+
+You should be comfortable with Python fundamentals, as all code examples are in Python.
+
+**What you need to know:**
+
+- Basic syntax (variables, functions, loops, conditionals)
+- Data structures (lists, dictionaries, tuples)
+- Working with libraries (importing modules, using pip/conda)
+- Object-oriented programming basics (classes, methods)
+- File I/O operations
+- Using Jupyter notebooks
+
+**Self-assessment test:**
+
+```python
+# Can you understand and modify this code?
+import numpy as np
+from typing import List, Dict
+
+class TextProcessor:
+    def __init__(self, texts: List[str]):
+        self.texts = texts
+    
+    def get_word_counts(self) -> Dict[str, int]:
+        word_counts = {}
+        for text in self.texts:
+            for word in text.lower().split():
+                word_counts[word] = word_counts.get(word, 0) + 1
+        return word_counts
+
+# Usage
+processor = TextProcessor(["Hello world", "Hello Python"])
+counts = processor.get_word_counts()
+print(counts)  # {'hello': 2, 'world': 1, 'python': 1}
+```
+
+If the above code makes sense to you, you're ready!
+
+**Recommended resources if you need a refresher:**
+
+- [Python for Everybody](https://www.py4e.com/) (free course)
+- [Python.org Official Tutorial](https://docs.python.org/3/tutorial/)
+- [Real Python](https://realpython.com/) (practical tutorials)
+
+---
+
+### Machine Learning Fundamentals
+
+A basic understanding of ML concepts will help you follow along more easily.
+
+**Core concepts you should be familiar with:**
+
+<AccordionGroup>
+  <Accordion title="Supervised Learning">
+    - Training and test sets
+    - Features and labels
+    - Classification vs. regression
+    - Model evaluation (accuracy, precision, recall, F1)
+    - Overfitting and underfitting
+  </Accordion>
+
+  <Accordion title="Neural Networks Basics">
+    - What a neural network is conceptually
+    - Layers, neurons, and activation functions
+    - Forward pass and backpropagation (high-level understanding)
+    - Loss functions and optimization
+    - Training, validation, and testing
+  </Accordion>
+
+  <Accordion title="Key ML Terms">
+    - **Embeddings**: Dense vector representations of data
+    - **Fine-tuning**: Adapting a pre-trained model to specific tasks
+    - **Transfer learning**: Using knowledge from one task for another
+    - **Batch processing**: Processing multiple examples simultaneously
+    - **Gradient descent**: Optimization algorithm for training
+  </Accordion>
+</AccordionGroup>
+
+**Self-assessment questions:**
+
+1. Can you explain the difference between training and inference?
+2. What is the purpose of a validation set?
+3. Why do we use activation functions in neural networks?
+4. What does "learning rate" mean in the context of training?
+
+If you can answer 3 out of 4, you're in good shape!
+
+**Recommended resources:**
+
+- [Andrew Ng's Machine Learning Course](https://www.coursera.org/learn/machine-learning) (Coursera)
+- [Fast.ai Practical Deep Learning](https://course.fast.ai/)
+- [3Blue1Brown's Neural Networks Series](https://www.youtube.com/playlist?list=PLZHQObOWTQDNU6R1_67000Dx_ZCJB-3pi) (visual explanations)
+
+---
+
+### Deep Learning & NLP Basics
+
+While the book teaches you about LLMs, some foundational deep learning and NLP knowledge is helpful.
+
+**What helps (but isn't strictly required):**
+
+- **Basic NLP concepts**: Tokenization, text preprocessing, n-grams
+- **Word embeddings**: Understanding that words can be represented as vectors (Word2Vec, GloVe concepts)
+- **Sequence models**: High-level awareness of RNNs/LSTMs
+- **Attention mechanism**: Conceptual understanding (the book explains this in detail)
+- **Pre-training and fine-tuning**: General idea of transfer learning in NLP
+
+<Tip>
+The book includes extensive visual explanations of transformers, attention mechanisms, and other advanced concepts. If you're new to these topics, the book's illustrations will guide you through them step-by-step.
+</Tip>
+
+**Recommended resources:**
+
+- [Stanford CS224N: NLP with Deep Learning](https://web.stanford.edu/class/cs224n/) (lectures available free)
+- [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/) by Jay Alammar (book co-author)
+- [StatQuest's Neural Networks](https://www.youtube.com/c/joshstarmer) by Josh Starmer
+
+---
+
+## Recommended Background
+
+### Mathematics
+
+You don't need to be a math expert, but familiarity with these concepts helps:
+
+**Linear Algebra (most important):**
+- Vectors and matrices
+- Matrix multiplication
+- Dot products
+- Vector spaces and dimensions
+
+**Calculus (basic understanding):**
+- Derivatives and gradients (conceptually)
+- Chain rule (for understanding backpropagation)
+
+**Probability & Statistics (helpful):**
+- Probability distributions
+- Mean, variance, standard deviation
+- Sampling and randomness
+
+<Note>
+The book focuses on practical implementation rather than mathematical theory. Understanding these concepts at a high level is sufficient for most readers.
+</Note>
+
+**Recommended resources:**
+
+- [3Blue1Brown's Essence of Linear Algebra](https://www.youtube.com/playlist?list=PLZHQObOWTQDPD3MizzM2xVFitgF8hE_ab)
+- [Khan Academy: Linear Algebra](https://www.khanacademy.org/math/linear-algebra)
+- [StatQuest](https://www.youtube.com/c/joshstarmer) (statistics concepts)
+
+---
+
+### Libraries & Tools
+
+You'll work extensively with these libraries throughout the book:
+
+| Library | Purpose | Required Experience |
+|---------|---------|-------------------|
+| **NumPy** | Numerical computing | Basic array operations |
+| **Pandas** | Data manipulation | Reading CSV, DataFrame basics |
+| **Matplotlib** | Visualization | Simple plotting |
+| **PyTorch** | Deep learning framework | Helpful but taught in book |
+| **Transformers** | Hugging Face library | Not required - taught in book |
+| **Scikit-learn** | ML utilities | Basic familiarity helpful |
+
+**What you should be able to do:**
+
+```python
+# NumPy: Create and manipulate arrays
+import numpy as np
+arr = np.array([1, 2, 3, 4])
+print(arr.mean(), arr.std())
+
+# Pandas: Load and explore data
+import pandas as pd
+df = pd.read_csv("data.csv")
+print(df.head(), df.describe())
+
+# Matplotlib: Create simple plots
+import matplotlib.pyplot as plt
+plt.plot([1, 2, 3], [1, 4, 9])
+plt.xlabel("X axis")
+plt.ylabel("Y axis")
+plt.show()
+```
+
+<Tip>
+If you're new to PyTorch or Transformers, don't worry! The book teaches you these libraries from scratch with practical examples.
+</Tip>
+
+---
+
+## The Visual Learning Approach
+
+One of the unique aspects of "Hands-On Large Language Models" is its heavy use of visual explanations.
+
+### What Makes This Book Different
+
+- **~300 custom illustrations**: Complex concepts explained through clear, custom-made diagrams
+- **Visual-first approach**: Every major concept is accompanied by visual aids
+- **Step-by-step breakdowns**: Complex architectures shown layer by layer
+- **Code-to-diagram mapping**: Code examples directly connected to visual representations
+
+<Note>
+This visual learning approach, pioneered by co-author Jay Alammar in his popular blog posts like "The Illustrated Transformer," makes LLM concepts accessible even to those without extensive ML backgrounds.
+</Note>
+
+### Who This Book Is For
+
+**This book is ideal if you:**
+- Are a software engineer wanting to work with LLMs
+- Have ML experience but are new to transformers
+- Want to understand how LLMs work under the hood
+- Need practical, hands-on examples (not just theory)
+- Prefer learning through visualization and code
+- Want to build real applications with LLMs
+
+**This book might be challenging if you:**
+- Have never programmed before
+- Are completely new to machine learning concepts
+- Don't have access to a GPU (though Colab is free!)
+- Prefer pure mathematical theory over practical implementation
+
+---
+
+## Preparatory Learning Path
+
+If you're starting from scratch, here's a recommended learning path:
+
+<Steps>
+  <Step title="Learn Python Basics (2-4 weeks)">
+    Complete a Python fundamentals course covering:
+    - Variables, functions, and control flow
+    - Lists, dictionaries, and data structures
+    - Object-oriented programming basics
+    - Working with libraries
+    
+    **Resource**: [Python for Everybody](https://www.py4e.com/)
+  </Step>
+
+  <Step title="Get Familiar with NumPy/Pandas (1 week)">
+    Learn basic data manipulation:
+    - Creating and manipulating arrays
+    - Reading and processing CSV files
+    - Basic data analysis
+    
+    **Resource**: [NumPy Quickstart](https://numpy.org/doc/stable/user/quickstart.html), [Pandas Getting Started](https://pandas.pydata.org/docs/getting_started/index.html)
+  </Step>
+
+  <Step title="Understand ML Fundamentals (2-3 weeks)">
+    Grasp core machine learning concepts:
+    - Supervised learning basics
+    - Training vs. testing
+    - Classification and regression
+    - Model evaluation
+    
+    **Resource**: [Andrew Ng's ML Course](https://www.coursera.org/learn/machine-learning) or [Fast.ai](https://course.fast.ai/)
+  </Step>
+
+  <Step title="Learn Basic Neural Networks (1-2 weeks)">
+    Understand how neural networks work:
+    - Layers and neurons
+    - Activation functions
+    - Training process (high-level)
+    
+    **Resource**: [3Blue1Brown's Neural Networks](https://www.youtube.com/playlist?list=PLZHQObOWTQDNU6R1_67000Dx_ZCJB-3pi)
+  </Step>
+
+  <Step title="Explore NLP Basics (1 week)">
+    Get familiar with text processing:
+    - Tokenization concepts
+    - Word embeddings (conceptual)
+    - Common NLP tasks
+    
+    **Resource**: [The Illustrated Word2Vec](https://jalammar.github.io/illustrated-word2vec/)
+  </Step>
+
+  <Step title="Start the Book!">
+    You're ready! The book will teach you:
+    - Transformers and attention mechanisms
+    - Working with Hugging Face Transformers
+    - Fine-tuning LLMs
+    - Building LLM applications
+    - Advanced techniques (RAG, embeddings, multimodal models)
+  </Step>
+</Steps>
+
+**Total preparation time**: 7-12 weeks for complete beginners
+
+**Already have ML experience?** You can likely start the book immediately!
+
+---
+
+## Skill Level Assessment
+
+Use this checklist to determine if you're ready:
+
+### ✅ Ready to Start Now
+
+- [ ] Comfortable writing Python scripts
+- [ ] Understand basic ML concepts (training, testing, evaluation)
+- [ ] Can work with NumPy arrays and Pandas DataFrames
+- [ ] Know what neural networks are conceptually
+- [ ] Familiar with Jupyter notebooks
+- [ ] Have access to Google Colab or a local GPU
+
+### 📚 Need Some Preparation (1-2 weeks)
+
+- [ ] Know Python but rusty on ML concepts
+- [ ] Haven't used NumPy/Pandas extensively
+- [ ] Unclear on neural network basics
+- [ ] Need to set up development environment
+
+### 🎓 Recommended Preparatory Study (4-8 weeks)
+
+- [ ] Python beginner
+- [ ] No ML experience
+- [ ] Never worked with data science libraries
+- [ ] Not familiar with deep learning concepts
+
+---
+
+## Complementary Resources
+
+### While Reading the Book
+
+Enhance your learning with these companion resources:
+
+**From the Authors:**
+- [The Illustrated Transformer](https://jalammar.github.io/illustrated-transformer/) - Jay Alammar
+- [The Illustrated BERT](https://jalammar.github.io/illustrated-bert/) - Jay Alammar
+- [A Visual Guide to Quantization](https://newsletter.maartengrootendorst.com/p/a-visual-guide-to-quantization) - Maarten Grootendorst
+- [A Visual Guide to Mamba and State Space Models](https://newsletter.maartengrootendorst.com/p/a-visual-guide-to-mamba-and-state) - Maarten Grootendorst
+
+**Video Courses:**
+- [How Transformer LLMs Work](https://www.deeplearning.ai/short-courses/how-transformer-llms-work/) - DeepLearning.AI (NEW!)
+- [StatQuest Machine Learning](https://www.youtube.com/c/joshstarmer) - Josh Starmer
+
+**Documentation:**
+- [Hugging Face Documentation](https://huggingface.co/docs)
+- [PyTorch Tutorials](https://pytorch.org/tutorials/)
+- [Transformers Course](https://huggingface.co/learn/nlp-course)
+
+### Community & Support
+
+**Official Resources:**
+- [GitHub Repository](https://github.com/HandsOnLLM/Hands-On-Large-Language-Models) - Code examples and issues
+- Follow [Jay Alammar](https://www.linkedin.com/in/jalammar/) and [Maarten Grootendorst](https://www.linkedin.com/in/mgrootendorst/) on LinkedIn
+
+**Where to Get Help:**
+- GitHub Issues for code-specific questions
+- [Hugging Face Forums](https://discuss.huggingface.co/) for library questions
+- [Stack Overflow](https://stackoverflow.com/questions/tagged/transformers) with relevant tags
+
+---
+
+## What You'll Learn
+
+By working through the book, you'll gain practical experience with:
+
+<CardGroup cols={2}>
+  <Card title="Core Concepts" icon="book">
+    - How transformers work
+    - Tokenization and embeddings
+    - Attention mechanisms
+    - Model architectures
+  </Card>
+  
+  <Card title="Practical Skills" icon="code">
+    - Using Hugging Face Transformers
+    - Text classification and clustering
+    - Prompt engineering
+    - Fine-tuning models
+  </Card>
+  
+  <Card title="Advanced Techniques" icon="brain">
+    - Retrieval-Augmented Generation (RAG)
+    - Creating custom embeddings
+    - Multimodal models
+    - Parameter-efficient fine-tuning (PEFT)
+  </Card>
+  
+  <Card title="Real Applications" icon="rocket">
+    - Semantic search systems
+    - Topic modeling
+    - Text generation pipelines
+    - Production-ready LLM apps
+  </Card>
+</CardGroup>
+
+---
+
+## Next Steps
+
+<Steps>
+  <Step title="Assess Your Current Level">
+    Use the checklists above to determine your preparedness.
+  </Step>
+  
+  <Step title="Fill Knowledge Gaps">
+    If needed, work through the recommended preparatory resources.
+  </Step>
+  
+  <Step title="Set Up Your Environment">
+    Follow the [Environment Setup](/setup) guide to prepare your development environment.
+  </Step>
+  
+  <Step title="Start Chapter 1">
+    Open the [Chapter 1 notebook](https://colab.research.google.com/github/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter01/Chapter%201%20-%20Introduction%20to%20Language%20Models.ipynb) and begin your LLM journey!
+  </Step>
+</Steps>
+
+<Tip>
+Remember: The book's visual approach makes it more accessible than traditional technical texts. Even if you're missing some prerequisites, the illustrations and hands-on examples will help you learn as you go!
+</Tip>

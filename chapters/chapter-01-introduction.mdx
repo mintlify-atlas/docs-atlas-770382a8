@@ -1,0 +1,216 @@
+---
+title: "Chapter 1: Introduction to Language Models"
+description: "Exploring the exciting field of Language AI with hands-on examples using state-of-the-art models"
+---
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter01/Chapter%201%20-%20Introduction%20to%20Language%20Models.ipynb)
+
+## Overview
+
+This chapter introduces you to the world of Large Language Models (LLMs) through hands-on exploration. You'll learn how to load and run a modern LLM, understand the basic workflow of text generation, and get your first taste of working with the Hugging Face Transformers library.
+
+<Note>
+We recommend using a GPU for running the examples in this chapter. If you're using Google Colab, go to **Runtime > Change runtime type > Hardware accelerator > GPU > GPU type > T4**.
+</Note>
+
+## Learning Objectives
+
+By the end of this chapter, you will:
+
+- Understand the basic architecture and workflow of LLMs
+- Know how to load pre-trained models using Hugging Face Transformers
+- Be able to generate text using pipelines
+- Recognize the difference between models and tokenizers
+
+## Getting Started with Phi-3
+
+We'll use Microsoft's Phi-3 model, a compact yet powerful language model that can run efficiently on consumer hardware.
+
+### Setting Up Your Environment
+
+<Steps>
+  <Step title="Install Dependencies">
+    First, install the required packages:
+
+    ```python
+    pip install transformers==4.41.2 accelerate==0.31.0
+    ```
+  </Step>
+
+  <Step title="Load the Model and Tokenizer">
+    Load both the model and tokenizer from Hugging Face:
+
+    ```python
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    # Load model and tokenizer
+    model = AutoModelForCausalLM.from_pretrained(
+        "microsoft/Phi-3-mini-4k-instruct",
+        device_map="cuda",
+        torch_dtype="auto",
+        trust_remote_code=False,
+    )
+    tokenizer = AutoTokenizer.from_pretrained("microsoft/Phi-3-mini-4k-instruct")
+    ```
+  </Step>
+
+  <Step title="Create a Pipeline">
+    Wrap the model in a pipeline for easier text generation:
+
+    ```python
+    from transformers import pipeline
+
+    # Create a pipeline
+    generator = pipeline(
+        "text-generation",
+        model=model,
+        tokenizer=tokenizer,
+        return_full_text=False,
+        max_new_tokens=500,
+        do_sample=False
+    )
+    ```
+  </Step>
+</Steps>
+
+## Understanding the Components
+
+### What is a Model?
+
+The **model** is the neural network that has been trained on vast amounts of text data. It contains billions of parameters that encode patterns and knowledge about language. When you load a model with `AutoModelForCausalLM`, you're downloading these pre-trained weights.
+
+<Accordion title="Why 'CausalLM'?">
+The "Causal" in `AutoModelForCausalLM` refers to causal language modeling, where the model predicts the next token based only on previous tokens (left-to-right generation). This is in contrast to masked language models like BERT, which can see context in both directions.
+</Accordion>
+
+### What is a Tokenizer?
+
+The **tokenizer** converts text into numbers (tokens) that the model can process, and converts the model's numerical output back into readable text. Different models use different tokenization strategies, so it's important to use the matching tokenizer for your model.
+
+## Generating Your First Text
+
+Now let's generate some text! We'll ask the model to create a funny joke:
+
+```python
+# The prompt (user input / query)
+messages = [
+    {"role": "user", "content": "Create a funny joke about chickens."}
+]
+
+# Generate output
+output = generator(messages)
+print(output[0]["generated_text"])
+```
+
+**Output:**
+```
+Why did the chicken join the band? Because it had the drumsticks!
+```
+
+<Tip>
+The `messages` format with roles ("user", "assistant") is a common pattern for instruction-tuned models. It helps the model understand the conversational context.
+</Tip>
+
+## Key Parameters Explained
+
+When creating the pipeline, we specified several important parameters:
+
+<CardGroup cols={2}>
+  <Card title="return_full_text" icon="text">
+    Set to `False` to return only the generated text, not the prompt
+  </Card>
+  
+  <Card title="max_new_tokens" icon="hashtag">
+    Limits the number of new tokens to generate (controls output length)
+  </Card>
+  
+  <Card title="do_sample" icon="dice">
+    Set to `False` for deterministic (greedy) generation, `True` for random sampling
+  </Card>
+  
+  <Card title="device_map" icon="microchip">
+    Specifies where to load the model ("cuda" for GPU, "cpu" for CPU)
+  </Card>
+</CardGroup>
+
+## Understanding the Workflow
+
+The text generation process follows these steps:
+
+<Steps>
+  <Step title="Tokenization">
+    Your input text is converted into token IDs using the tokenizer
+  </Step>
+  
+  <Step title="Model Processing">
+    The model processes these tokens and predicts the next token
+  </Step>
+  
+  <Step title="Generation Loop">
+    This process repeats, with each new token being added to the input
+  </Step>
+  
+  <Step title="Decoding">
+    The final token IDs are converted back to readable text
+  </Step>
+</Steps>
+
+## Common Use Cases
+
+LLMs like Phi-3 can be used for a wide variety of tasks:
+
+- **Content Generation**: Writing articles, stories, or creative content
+- **Question Answering**: Providing informative responses to questions
+- **Code Generation**: Writing and explaining code snippets
+- **Text Transformation**: Summarizing, translating, or reformatting text
+- **Conversational AI**: Building chatbots and virtual assistants
+
+## Hardware Considerations
+
+<Note>
+**Model Size**: Phi-3-mini-4k-instruct is approximately 3.8B parameters, requiring around 7.6GB of VRAM when loaded in float16 precision.
+
+**Recommended Hardware**:
+- GPU: NVIDIA T4 or better (16GB+ VRAM recommended)
+- RAM: 16GB+ system memory
+- Storage: 10GB+ for model files
+</Note>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Out of Memory Errors">
+    If you encounter CUDA out of memory errors, try:
+    - Using a smaller model
+    - Reducing `max_new_tokens`
+    - Loading the model in 8-bit or 4-bit precision using `load_in_8bit=True`
+  </Accordion>
+
+  <Accordion title="Slow Generation">
+    To speed up generation:
+    - Ensure you're using a GPU (`device_map="cuda"`)
+    - Use Flash Attention if available
+    - Consider using `torch.compile()` for newer PyTorch versions
+  </Accordion>
+
+  <Accordion title="Model Download Issues">
+    If the model fails to download:
+    - Check your internet connection
+    - Verify you have enough disk space
+    - Try using a Hugging Face access token for rate-limited downloads
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+Now that you understand the basics of loading and running an LLM, you're ready to dive deeper into how these models work internally.
+
+<Card title="Chapter 2: Tokens and Token Embeddings" icon="cube" href="/chapters/chapter-02-tokens-embeddings">
+  Learn how text is converted into numerical representations that LLMs can process
+</Card>
+
+## Additional Resources
+
+- [Hugging Face Transformers Documentation](https://huggingface.co/docs/transformers)
+- [Phi-3 Model Card](https://huggingface.co/microsoft/Phi-3-mini-4k-instruct)
+- [Book Repository](https://github.com/HandsOnLLM/Hands-On-Large-Language-Models)

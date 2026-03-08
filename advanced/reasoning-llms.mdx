@@ -1,0 +1,254 @@
+---
+title: 'Visual Guide to Reasoning LLMs'
+description: 'Explore how modern LLMs perform complex reasoning through extended thinking and search'
+---
+
+## Overview
+
+While early language models excelled at pattern matching and surface-level text generation, recent advances have enabled LLMs to perform genuine multi-step reasoning. By generating intermediate "thinking" steps and searching through possible solution paths, reasoning LLMs can solve complex problems in mathematics, coding, science, and logical deduction that were previously out of reach.
+
+<Note>
+This guide is part of the bonus material for **Hands-On Large Language Models**. It explores cutting-edge capabilities that go beyond the foundational techniques covered in the book.
+</Note>
+
+## The Reasoning Revolution
+
+The emergence of reasoning capabilities in LLMs marks a significant milestone:
+
+- **Chain-of-Thought**: Breaking problems into explicit reasoning steps
+- **Process Supervision**: Rewarding correct reasoning, not just correct answers
+- **Search and Verification**: Exploring multiple solution paths
+- **Self-Critique**: Models evaluating and improving their own reasoning
+
+Models like **GPT-4**, **Claude 3**, **o1**, and **DeepSeek-R1** demonstrate sophisticated reasoning abilities.
+
+## What Makes Reasoning Different
+
+Traditional LLM generation:
+```
+Question → [Model] → Direct Answer
+```
+
+Reasoning LLMs:
+```
+Question → [Extended Thinking] → [Verification] → [Refinement] → Answer
+              ↓
+          Multiple reasoning paths explored
+          Self-correction and verification
+          Step-by-step logical deduction
+```
+
+The key is **intermediate computation** - the model explicitly generates reasoning steps rather than jumping directly to answers.
+
+## What You'll Learn
+
+The visual guide explains reasoning LLMs through detailed illustrations:
+
+<CardGroup cols={2}>
+  <Card title="Chain-of-Thought" icon="link">
+    How prompting for step-by-step reasoning dramatically improves performance
+  </Card>
+  
+  <Card title="Training Methods" icon="graduation-cap">
+    Process reward models, RLHF for reasoning, and synthetic data generation
+  </Card>
+  
+  <Card title="Search Strategies" icon="magnifying-glass">
+    Beam search, tree search, and other techniques for exploring solution spaces
+  </Card>
+  
+  <Card title="Verification" icon="check">
+    How models evaluate reasoning steps and self-correct errors
+  </Card>
+</CardGroup>
+
+## Visual Guide
+
+<Card 
+  title="A Visual Guide to Reasoning LLMs" 
+  icon="arrow-up-right-from-square"
+  href="https://newsletter.maartengrootendorst.com/p/a-visual-guide-to-reasoning-llms"
+>
+  Read the full visual guide with detailed diagrams showing how reasoning LLMs work, from chain-of-thought to advanced search strategies.
+</Card>
+
+## Related Book Chapters
+
+Reasoning builds on fundamental LLM capabilities:
+
+- **Chapter 5: Text Generation** - Generation strategies that enable reasoning
+- **Chapter 6: Prompt Engineering** - Chain-of-thought and reasoning prompts
+- **Chapter 7: Advanced Text Generation** - Decoding strategies and generation control
+- **Chapter 8: Customizing LLMs** - Training approaches for reasoning capabilities
+
+## Key Concepts Covered
+
+### Chain-of-Thought Prompting
+
+The breakthrough that started it all - simply asking models to "think step by step":
+
+**Zero-shot CoT**
+```
+Question: What is 23 * 47?
+Prompt: Let's think step by step.
+Model: First, I'll break this down...
+```
+
+**Few-shot CoT**
+Provide examples of reasoning steps before asking the question.
+
+**Benefits**
+- Dramatically improves performance on reasoning tasks
+- Makes reasoning process transparent and verifiable
+- Enables error detection and correction
+
+### Process vs Outcome Supervision
+
+**Outcome Supervision (Traditional)**
+- Reward models based on final answer correctness
+- Problem: Can't distinguish lucky guesses from sound reasoning
+- Reinforces shortcuts and brittle patterns
+
+**Process Supervision (Modern)**
+- Reward models for each reasoning step
+- Encourages correct reasoning paths
+- More robust generalization
+- Used in GPT-4 and other advanced models
+
+### Reasoning Strategies
+
+**Self-Consistency**
+- Generate multiple reasoning paths
+- Select answer that appears most frequently
+- Improves reliability through ensembling
+
+**Tree-of-Thoughts**
+- Explore reasoning as a search tree
+- Evaluate intermediate steps
+- Backtrack from unpromising paths
+- Combine planning with exploration
+
+**Self-Reflection**
+- Model critiques its own reasoning
+- Identifies potential errors
+- Generates improved solutions
+- Iterative refinement
+
+### Training for Reasoning
+
+**Synthetic Data Generation**
+- Create reasoning examples programmatically
+- Scale beyond human-annotated data
+- Control difficulty and diversity
+
+**Reinforcement Learning**
+- Reward correct reasoning steps (process rewards)
+- Explore different reasoning strategies
+- Learn from mistakes and self-correction
+
+**Constitutional AI**
+- Encode reasoning principles
+- Model learns to follow logical rules
+- Improves reliability and alignment
+
+## Reasoning Model Architectures
+
+### OpenAI o1
+- Extended thinking time before responding
+- Hidden reasoning tokens not shown to user
+- Test-time compute scaling
+- Achieves PhD-level performance on some benchmarks
+
+### DeepSeek-R1
+- Open-source reasoning model
+- Explicit reasoning process visible to users
+- Strong performance on math and coding
+- See the [DeepSeek-R1 visual guide](/advanced/deepseek-r1) for details
+
+### Claude 3 and Extended Thinking
+- Long context reasoning over 200K tokens
+- Multi-step analysis and synthesis
+- Constitutional AI for aligned reasoning
+
+<Info>
+Reasoning LLMs represent a shift from "System 1" (fast, intuitive) to "System 2" (slow, deliberate) thinking in AI, enabling solutions to problems that require genuine logical deduction.
+</Info>
+
+## Benchmark Performance
+
+Reasoning LLMs excel on challenging benchmarks:
+
+- **MATH**: Graduate-level mathematics problems
+- **GSM8K**: Grade school math word problems
+- **MMLU-Pro**: Advanced knowledge and reasoning
+- **HumanEval**: Code generation requiring logical planning
+- **ARC**: Scientific reasoning and knowledge
+
+Performance improvements from reasoning:
+- 20-40% boost on math problems
+- 15-30% improvement on coding tasks
+- Better performance on novel problem types
+
+## Practical Applications
+
+### When Reasoning Helps Most
+- **Mathematics**: Multi-step problem solving
+- **Code generation**: Complex algorithms requiring planning
+- **Scientific reasoning**: Hypothesis formation and testing
+- **Legal analysis**: Multi-step logical arguments
+- **Strategy**: Planning and decision-making
+
+### When Simple Generation Suffices
+- Creative writing without logical constraints
+- Simple factual retrieval
+- Style transfer and reformatting
+- Basic summarization
+
+## Implementation Strategies
+
+1. **Start with prompting**: Use chain-of-thought prompts
+2. **Enable self-consistency**: Generate multiple solutions
+3. **Add verification**: Ask model to check its work
+4. **Use specialized models**: Deploy reasoning models for complex tasks
+5. **Balance cost**: Reserve reasoning for tasks that need it
+
+## Limitations and Challenges
+
+### Current Limitations
+- **Latency**: Extended thinking increases response time
+- **Cost**: More tokens consumed during reasoning
+- **Reliability**: Can still make logical errors
+- **Opacity**: Hidden reasoning in some models (o1)
+
+### Active Research Areas
+- Improving reasoning efficiency
+- Better verification mechanisms
+- Multimodal reasoning
+- Combining reasoning with retrieval
+
+## Additional Resources
+
+- [Chain-of-Thought Prompting](https://arxiv.org/abs/2201.11903) - Original CoT paper
+- [Let's Verify Step by Step](https://arxiv.org/abs/2305.20050) - Process supervision
+- [Tree of Thoughts](https://arxiv.org/abs/2305.10601) - Search-based reasoning
+- [Self-Consistency](https://arxiv.org/abs/2203.11171) - Ensemble reasoning
+- [ReAct](https://arxiv.org/abs/2210.03629) - Reasoning + Acting
+
+## The Future of Reasoning
+
+Reasoning capabilities are rapidly evolving:
+
+- **Test-time compute scaling**: Longer thinking = better results
+- **Multimodal reasoning**: Combining vision, language, and more
+- **Formal verification**: Connecting to theorem provers
+- **Agent systems**: Reasoning for complex multi-step tasks
+
+<CardGroup cols={2}>
+  <Card title="DeepSeek-R1" href="/advanced/deepseek-r1">
+    Deep dive into the DeepSeek-R1 reasoning model
+  </Card>
+  
+  <Card title="LLM Agents" href="/advanced/agents">
+    How reasoning enables autonomous agent systems
+  </Card>
+</CardGroup>

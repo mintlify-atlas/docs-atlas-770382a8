@@ -1,0 +1,382 @@
+---
+title: "Fine-Tuning BERT for Classification"
+description: "Master supervised and few-shot classification by fine-tuning BERT models with different strategies including layer freezing and parameter-efficient methods."
+---
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter11/Chapter%2011%20-%20Fine-Tuning%20BERT.ipynb)
+
+## Overview
+
+This chapter explores how to fine-tune BERT and other representation models for classification tasks. We'll cover supervised fine-tuning, layer freezing strategies, and parameter-efficient approaches.
+
+<Note>
+Use a GPU for fine-tuning. In Google Colab, select **Runtime > Change runtime type > Hardware accelerator > GPU > GPU type > T4**.
+</Note>
+
+## When to Fine-Tune BERT
+
+Fine-tune BERT models when:
+
+- You have labeled classification data (100+ examples minimum)
+- You need task-specific predictions (sentiment, topic, intent)
+- Pre-trained models need domain adaptation
+- You want better performance than zero-shot approaches
+
+## Dataset Preparation
+
+### Loading the Data
+
+We'll use the Rotten Tomatoes dataset for sentiment classification:
+
+```python
+from datasets import load_dataset
+
+# Prepare data and splits
+tomatoes = load_dataset("rotten_tomatoes")
+train_data, test_data = tomatoes["train"], tomatoes["test"]
+```
+
+**Dataset statistics:**
+- Training examples: 8,530
+- Test examples: 1,066
+- Labels: 0 (negative), 1 (positive)
+
+### Model and Tokenizer Setup
+
+```python
+from transformers import AutoTokenizer, AutoModelForSequenceClassification
+
+# Load Model and Tokenizer
+model_id = "bert-base-cased"
+model = AutoModelForSequenceClassification.from_pretrained(
+    model_id, 
+    num_labels=2
+)
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+```
+
+### Tokenization
+
+```python
+from transformers import DataCollatorWithPadding
+
+# Pad to the longest sequence in the batch
+data_collator = DataCollatorWithPadding(tokenizer=tokenizer)
+
+def preprocess_function(examples):
+    """Tokenize input data"""
+    return tokenizer(examples["text"], truncation=True)
+
+# Tokenize train/test data
+tokenized_train = train_data.map(preprocess_function, batched=True)
+tokenized_test = test_data.map(preprocess_function, batched=True)
+```
+
+## Supervised Fine-Tuning
+
+### Define Metrics
+
+```python
+import numpy as np
+import evaluate
+
+def compute_metrics(eval_pred):
+    """Calculate F1 score"""
+    logits, labels = eval_pred
+    predictions = np.argmax(logits, axis=-1)
+    
+    load_f1 = evaluate.load("f1")
+    f1 = load_f1.compute(predictions=predictions, references=labels)["f1"]
+    return {"f1": f1}
+```
+
+### Training Configuration
+
+```python
+from transformers import TrainingArguments, Trainer
+
+# Training arguments for parameter tuning
+training_args = TrainingArguments(
+    "model",
+    learning_rate=2e-5,
+    per_device_train_batch_size=16,
+    per_device_eval_batch_size=16,
+    num_train_epochs=1,
+    weight_decay=0.01,
+    save_strategy="epoch",
+    report_to="none"
+)
+
+# Trainer which executes the training process
+trainer = Trainer(
+    model=model,
+    args=training_args,
+    train_dataset=tokenized_train,
+    eval_dataset=tokenized_test,
+    tokenizer=tokenizer,
+    data_collator=data_collator,
+    compute_metrics=compute_metrics,
+)
+```
+
+### Training and Evaluation
+
+<CodeGroup>
+
+```python Training
+trainer.train()
+```
+
+```python Evaluation
+trainer.evaluate()
+```
+
+</CodeGroup>
+
+**Training results (full fine-tuning):**
+```python
+{
+  'train_runtime': 61.67,
+  'train_loss': 0.418,
+  'epoch': 1.0
+}
+```
+
+**Evaluation results:**
+```python
+{
+  'eval_loss': 0.371,
+  'eval_f1': 0.857,
+  'eval_runtime': 3.11,
+  'epoch': 1.0
+}
+```
+
+## Layer Freezing Strategies
+
+### Understanding BERT Layers
+
+<Tip>
+BERT-base has 12 transformer layers. Freezing lower layers preserves general language understanding while fine-tuning upper layers for your task.
+</Tip>
+
+### Freeze All Except Classification Head
+
+```python
+# View all layer names
+for name, param in model.named_parameters():
+    print(name)
+
+# Freeze strategy
+for name, param in model.named_parameters():
+    # Trainable classification head
+    if name.startswith("classifier"):
+        param.requires_grad = True
+    # Freeze everything else
+    else:
+        param.requires_grad = False
+
+# Verify freezing
+for name, param in model.named_parameters():
+    print(f"Parameter: {name} ----- {param.requires_grad}")
+```
+
+**Results (frozen layers):**
+```python
+{
+  'train_runtime': 15.23,
+  'train_loss': 0.696,
+  'eval_f1': 0.638,
+  'epoch': 1.0
+}
+```
+
+<Note>
+Freezing layers provides:
+- **Faster training**: 15s vs 62s (4x speedup)
+- **Lower F1**: 0.638 vs 0.857
+- **Less overfitting**: Useful with limited data
+</Note>
+
+### Freeze Lower Layers (0-5)
+
+A balanced approach that preserves pre-trained features while allowing task adaptation:
+
+```python
+for index, (name, param) in enumerate(model.named_parameters()):
+    # Freeze embeddings and layers 0-5 (indices 0-100)
+    if index <= 100:
+        param.requires_grad = False
+    # Train layers 6-11 and classifier
+    else:
+        param.requires_grad = True
+```
+
+**Results (partial freezing):**
+```python
+{
+  'train_runtime': 21.0,
+  'train_loss': 0.475,
+  'eval_f1': 0.768,
+  'epoch': 1.0
+}
+```
+
+## Fine-Tuning Strategy Comparison
+
+| Strategy | Training Time | Training Loss | Eval F1 | Use Case |
+|----------|--------------|---------------|---------|----------|
+| Full fine-tuning | 62s | 0.418 | 0.857 | Abundant data |
+| Freeze all layers | 15s | 0.696 | 0.638 | Very limited data |
+| Freeze layers 0-5 | 21s | 0.475 | 0.768 | Moderate data |
+
+## BERT Architecture Layers
+
+<Steps>
+
+<Step title="Embeddings">
+Word, position, and token type embeddings (indices 0-4)
+</Step>
+
+<Step title="Transformer Layers 0-5">
+Lower layers capture syntax and basic semantics (indices 5-100)
+</Step>
+
+<Step title="Transformer Layers 6-11">
+Upper layers capture task-specific patterns (indices 101-196)
+</Step>
+
+<Step title="Pooler and Classifier">
+Task-specific output layers (indices 197-200)
+</Step>
+
+</Steps>
+
+## Hyperparameter Recommendations
+
+### Learning Rate
+
+<CodeGroup>
+
+```python Full Fine-Tuning
+learning_rate=2e-5  # Standard for BERT
+```
+
+```python Frozen Layers
+learning_rate=5e-5  # Higher for classification head only
+```
+
+</CodeGroup>
+
+### Batch Size
+
+```python
+# GPU memory constraints
+per_device_train_batch_size=16  # T4 GPU
+per_device_train_batch_size=32  # V100/A100
+
+# Effective batch size with gradient accumulation
+gradient_accumulation_steps=2  # Effective batch = 16 * 2 = 32
+```
+
+### Epochs
+
+<Warning>
+BERT models overfit quickly. Recommendations:
+- Large datasets (&gt;10k): 2-3 epochs
+- Medium datasets (1k-10k): 3-4 epochs  
+- Small datasets (&lt;1k): 4-6 epochs with validation monitoring
+</Warning>
+
+## Training Loss Progression
+
+Typical training loss over 1 epoch (534 steps):
+
+```
+Step 100: 0.697
+Step 200: 0.424
+Step 300: 0.400
+Step 400: 0.387
+Step 500: 0.424
+Final: 0.418
+```
+
+## Model Inspection
+
+Examine trainable parameters:
+
+```python
+# Count parameters
+total_params = sum(p.numel() for p in model.parameters())
+trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+
+print(f"Total parameters: {total_params:,}")
+print(f"Trainable parameters: {trainable_params:,}")
+print(f"Frozen parameters: {total_params - trainable_params:,}")
+```
+
+## Best Practices
+
+<Steps>
+
+<Step title="Start with Pre-trained Models">
+Always use models pre-trained on large corpora (BERT, RoBERTa, DistilBERT)
+</Step>
+
+<Step title="Match Tokenizer and Model">
+Ensure tokenizer corresponds to the model architecture:
+- `bert-base-uncased` → lowercase, no accent marks
+- `bert-base-cased` → preserves case and accents
+</Step>
+
+<Step title="Monitor for Overfitting">
+```python
+# Enable evaluation during training
+eval_strategy="steps"
+eval_steps=100
+load_best_model_at_end=True
+metric_for_best_model="f1"
+```
+</Step>
+
+<Step title="Use Mixed Precision">
+```python
+fp16=True  # Faster training, lower memory
+```
+</Step>
+
+</Steps>
+
+## Common Issues and Solutions
+
+### Out of Memory (OOM)
+
+```python
+# Reduce batch size
+per_device_train_batch_size=8
+gradient_accumulation_steps=4
+
+# Or use gradient checkpointing
+gradient_checkpointing=True
+```
+
+### Poor Performance
+
+- Increase training epochs
+- Reduce frozen layers
+- Try different learning rates (1e-5, 3e-5, 5e-5)
+- Check for data quality issues
+
+### Slow Training
+
+- Enable fp16 mixed precision
+- Freeze more layers
+- Increase batch size if memory allows
+- Use gradient accumulation
+
+## Next Steps
+
+- Experiment with RoBERTa and DeBERTa for better performance
+- Try few-shot learning with SetFit
+- Implement LoRA for parameter-efficient fine-tuning
+- Use different classification heads (pooling strategies)

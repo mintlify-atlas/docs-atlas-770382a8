@@ -1,0 +1,466 @@
+---
+title: 'Chapter 4: Text Classification'
+description: 'Classifying text with both representative and generative models'
+---
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter04/Chapter%204%20-%20Text%20Classification.ipynb)
+
+## Overview
+
+Text classification is one of the most fundamental tasks in Natural Language Processing. This chapter explores how to classify text using both **representation models** (encoder-based) and **generative models** (decoder and encoder-decoder models). You'll learn multiple approaches ranging from zero-shot classification to fine-tuned models, and understand when to use each technique.
+
+### What You'll Learn
+
+<Steps>
+  <Step title="Representation Models for Classification">
+    Learn how to use pre-trained models like RoBERTa and sentence embeddings for classification tasks
+  </Step>
+  <Step title="Embedding-based Approaches">
+    Discover how to leverage embeddings with traditional ML classifiers and zero-shot techniques
+  </Step>
+  <Step title="Generative Models for Classification">
+    Use encoder-decoder models like FLAN-T5 and ChatGPT for text classification
+  </Step>
+  <Step title="Performance Comparison">
+    Compare different approaches and understand their trade-offs
+  </Step>
+</Steps>
+
+## Use Cases
+
+Text classification powers numerous real-world applications:
+
+- **Sentiment Analysis**: Classify movie reviews, product feedback, or social media posts as positive or negative
+- **Content Moderation**: Automatically detect toxic, spam, or inappropriate content
+- **Customer Support**: Route support tickets to the appropriate department
+- **Document Organization**: Categorize emails, news articles, or research papers
+- **Intent Detection**: Classify user queries in chatbots and virtual assistants
+
+## Dataset: Rotten Tomatoes Movie Reviews
+
+Throughout this chapter, we use the **Rotten Tomatoes** dataset, which contains movie reviews labeled as positive (1) or negative (0).
+
+```python
+from datasets import load_dataset
+
+# Load our data
+data = load_dataset("rotten_tomatoes")
+data
+```
+
+**Output:**
+```
+DatasetDict({
+    train: Dataset({
+        features: ['text', 'label'],
+        num_rows: 8530
+    })
+    validation: Dataset({
+        features: ['text', 'label'],
+        num_rows: 1066
+    })
+    test: Dataset({
+        features: ['text', 'label'],
+        num_rows: 1066
+    })
+})
+```
+
+**Example reviews:**
+```python
+data["train"][0, -1]
+```
+
+```
+{
+  'text': [
+    "the rock is destined to be the 21st century's new 'conan' and that he's going to make a splash even greater than arnold schwarzenegger, jean-claud van damme or steven segal.",
+    "things really get weird, though not particularly scary: the movie is all portent and no content."
+  ],
+  'label': [1, 0]
+}
+```
+
+## Text Classification with Representation Models
+
+Representation models (encoder-based models like BERT, RoBERTa) excel at understanding and encoding the meaning of text into numerical vectors.
+
+### Approach 1: Using a Task-Specific Model
+
+The simplest approach is to use a model that's already fine-tuned for sentiment analysis.
+
+```python
+from transformers import pipeline
+
+# Path to our HF model
+model_path = "cardiffnlp/twitter-roberta-base-sentiment-latest"
+
+# Load model into pipeline
+pipe = pipeline(
+    model=model_path,
+    tokenizer=model_path,
+    return_all_scores=True,
+    device="cuda:0"
+)
+```
+
+<Note>
+This model is based on RoBERTa and has been fine-tuned specifically for sentiment analysis on Twitter data. It can classify text into negative, neutral, and positive categories.
+</Note>
+
+**Run inference on the test set:**
+
+```python
+import numpy as np
+from tqdm import tqdm
+from transformers.pipelines.pt_utils import KeyDataset
+
+# Run inference
+y_pred = []
+for output in tqdm(pipe(KeyDataset(data["test"], "text")), total=len(data["test"])):
+    negative_score = output[0]["score"]
+    positive_score = output[2]["score"]
+    assignment = np.argmax([negative_score, positive_score])
+    y_pred.append(assignment)
+```
+
+**Evaluate performance:**
+
+```python
+from sklearn.metrics import classification_report
+
+def evaluate_performance(y_true, y_pred):
+    """Create and print the classification report"""
+    performance = classification_report(
+        y_true, y_pred,
+        target_names=["Negative Review", "Positive Review"]
+    )
+    print(performance)
+
+evaluate_performance(data["test"]["label"], y_pred)
+```
+
+**Results:**
+```
+                 precision    recall  f1-score   support
+
+Negative Review       0.76      0.88      0.81       533
+Positive Review       0.86      0.72      0.78       533
+
+       accuracy                           0.80      1066
+      macro avg       0.81      0.80      0.80      1066
+   weighted avg       0.81      0.80      0.80      1066
+```
+
+The model achieves **80% accuracy** on movie reviews, despite being trained on Twitter data!
+
+### Approach 2: Supervised Classification with Embeddings
+
+Instead of using a task-specific classifier, we can:
+1. Convert text to embeddings using a sentence transformer
+2. Train a traditional ML classifier on these embeddings
+
+```python
+from sentence_transformers import SentenceTransformer
+
+# Load model
+model = SentenceTransformer('sentence-transformers/all-mpnet-base-v2')
+
+# Convert text to embeddings
+train_embeddings = model.encode(data["train"]["text"], show_progress_bar=True)
+test_embeddings = model.encode(data["test"]["text"], show_progress_bar=True)
+```
+
+The embeddings have shape `(8530, 768)` - each text is represented as a 768-dimensional vector.
+
+**Train a logistic regression classifier:**
+
+```python
+from sklearn.linear_model import LogisticRegression
+
+# Train a Logistic Regression on our train embeddings
+clf = LogisticRegression(random_state=42)
+clf.fit(train_embeddings, data["train"]["label"])
+
+# Predict previously unseen instances
+y_pred = clf.predict(test_embeddings)
+evaluate_performance(data["test"]["label"], y_pred)
+```
+
+**Results:**
+```
+                 precision    recall  f1-score   support
+
+Negative Review       0.85      0.86      0.85       533
+Positive Review       0.86      0.85      0.85       533
+
+       accuracy                           0.85      1066
+      macro avg       0.85      0.85      0.85      1066
+   weighted avg       0.85      0.85      0.85      1066
+```
+
+This achieves **85% accuracy** - better than the task-specific model!
+
+<Tip>
+**Alternative Approach**: Instead of using a classifier, you can average the embeddings per class and use cosine similarity:
+
+```python
+import pandas as pd
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Average the embeddings of all documents in each target label
+df = pd.DataFrame(np.hstack([train_embeddings, np.array(data["train"]["label"]).reshape(-1, 1)]))
+averaged_target_embeddings = df.groupby(768).mean().values
+
+# Find the best matching embeddings between evaluation documents and target embeddings
+sim_matrix = cosine_similarity(test_embeddings, averaged_target_embeddings)
+y_pred = np.argmax(sim_matrix, axis=1)
+
+# Evaluate the model
+evaluate_performance(data["test"]["label"], y_pred)
+```
+
+This achieves **84% accuracy** without training any classifier!
+</Tip>
+
+### Approach 3: Zero-Shot Classification
+
+Zero-shot classification doesn't require any training data - you just provide label descriptions!
+
+```python
+# Create embeddings for our labels
+label_embeddings = model.encode(["A negative review", "A positive review"])
+
+# Find the best matching label for each document
+sim_matrix = cosine_similarity(test_embeddings, label_embeddings)
+y_pred = np.argmax(sim_matrix, axis=1)
+
+evaluate_performance(data["test"]["label"], y_pred)
+```
+
+**Results:**
+```
+                 precision    recall  f1-score   support
+
+Negative Review       0.78      0.77      0.78       533
+Positive Review       0.77      0.79      0.78       533
+
+       accuracy                           0.78      1066
+      macro avg       0.78      0.78      0.78      1066
+   weighted avg       0.78      0.78      0.78      1066
+```
+
+Achieves **78% accuracy** with **zero training**! The label descriptions you choose matter significantly.
+
+<Tip>
+**Experiment with different descriptions**: Try using `"A very negative movie review"` and `"A very positive movie review"` to see how results change!
+</Tip>
+
+## Classification with Generative Models
+
+Generative models can also perform classification by generating the class label as text.
+
+### Encoder-Decoder Models (FLAN-T5)
+
+FLAN-T5 is a text-to-text model that can follow instructions and generate responses.
+
+```python
+from transformers import pipeline
+
+# Load our model
+pipe = pipeline(
+    "text2text-generation",
+    model="google/flan-t5-small",
+    device="cuda:0"
+)
+```
+
+**Prepare the data with a prompt:**
+
+```python
+# Prepare our data
+prompt = "Is the following sentence positive or negative? "
+data = data.map(lambda example: {"t5": prompt + example['text']})
+```
+
+**Run inference:**
+
+```python
+# Run inference
+y_pred = []
+for output in tqdm(pipe(KeyDataset(data["test"], "t5")), total=len(data["test"])):
+    text = output[0]["generated_text"]
+    y_pred.append(0 if text == "negative" else 1)
+
+evaluate_performance(data["test"]["label"], y_pred)
+```
+
+**Results:**
+```
+                 precision    recall  f1-score   support
+
+Negative Review       0.83      0.85      0.84       533
+Positive Review       0.85      0.83      0.84       533
+
+       accuracy                           0.84      1066
+      macro avg       0.84      0.84      0.84      1066
+   weighted avg       0.84      0.84      0.84      1066
+```
+
+FLAN-T5-small achieves **84% accuracy** with simple prompting!
+
+### ChatGPT for Classification
+
+Large language models like ChatGPT can perform classification through conversational prompting.
+
+```python
+import openai
+
+# Create client
+client = openai.OpenAI(api_key="YOUR_KEY_HERE")
+
+def chatgpt_generation(prompt, document, model="gpt-3.5-turbo-0125"):
+    """Generate an output based on a prompt and an input document."""
+    messages = [
+        {
+            "role": "system",
+            "content": "You are a helpful assistant."
+        },
+        {
+            "role": "user",
+            "content": prompt.replace("[DOCUMENT]", document)
+        }
+    ]
+    chat_completion = client.chat.completions.create(
+        messages=messages,
+        model=model,
+        temperature=0
+    )
+    return chat_completion.choices[0].message.content
+```
+
+**Create a structured prompt:**
+
+```python
+# Define a prompt template as a base
+prompt = """Predict whether the following document is a positive or negative movie review:
+
+[DOCUMENT]
+
+If it is positive return 1 and if it is negative return 0. Do not give any other answers.
+"""
+
+# Predict the target using GPT
+document = "unpretentious, charming, quirky, original"
+chatgpt_generation(prompt, document)  # Returns: '1'
+```
+
+**Run on the entire test set** (requires API credits):
+
+```python
+predictions = [chatgpt_generation(prompt, doc) for doc in tqdm(data["test"]["text"])]
+
+# Extract predictions
+y_pred = [int(pred) for pred in predictions]
+
+# Evaluate performance
+evaluate_performance(data["test"]["label"], y_pred)
+```
+
+**Results:**
+```
+                 precision    recall  f1-score   support
+
+Negative Review       0.87      0.97      0.92       533
+Positive Review       0.96      0.86      0.91       533
+
+       accuracy                           0.91      1066
+      macro avg       0.92      0.91      0.91      1066
+   weighted avg       0.92      0.91      0.91      1066
+```
+
+ChatGPT achieves **91% accuracy** - the best performance of all methods!
+
+## Performance Comparison
+
+<CodeGroup>
+
+```python Zero-Shot (No Training)
+# Accuracy: 78%
+# Pros: No training required, very flexible
+# Cons: Lower accuracy, depends on label descriptions
+```
+
+```python Task-Specific Model
+# Accuracy: 80%
+# Pros: Fast inference, ready to use
+# Cons: Domain mismatch can reduce performance
+```
+
+```python Encoder-Decoder (FLAN-T5)
+# Accuracy: 84%
+# Pros: Instruction-following, flexible
+# Cons: Slower than encoders, requires prompting
+```
+
+```python Supervised (Embeddings + Classifier)
+# Accuracy: 85%
+# Pros: High accuracy, efficient training
+# Cons: Requires labeled training data
+```
+
+```python ChatGPT
+# Accuracy: 91%
+# Pros: Highest accuracy, very flexible
+# Cons: API costs, slower, requires internet
+```
+
+</CodeGroup>
+
+## Practical Applications
+
+<Accordion title="When to use each approach">
+
+**Zero-Shot Classification**
+- Limited or no training data available
+- Need quick prototyping
+- Working with many different categories
+- Label definitions are clear and distinguishable
+
+**Task-Specific Models**
+- Domain matches your use case
+- Need fast, consistent performance
+- Have computational constraints
+- Don't have resources to train custom models
+
+**Embeddings + Classifier**
+- Have sufficient labeled training data (hundreds to thousands of examples)
+- Need good balance of accuracy and speed
+- Want to use lightweight traditional ML models
+- Need model interpretability
+
+**Generative Models (FLAN-T5, ChatGPT)**
+- Need highest possible accuracy
+- Have complex classification tasks with nuanced categories
+- Can afford API costs or computation time
+- Working with evolving categories or requirements
+
+</Accordion>
+
+## Key Takeaways
+
+<Note>
+1. **Multiple paths to classification**: Representation models, embeddings, and generative models all offer viable approaches
+2. **Zero-shot is powerful**: Modern embeddings enable decent classification without any training
+3. **Trade-offs matter**: Balance accuracy, speed, cost, and training requirements for your use case
+4. **Prompt engineering helps**: For generative models, well-crafted prompts significantly impact performance
+5. **Embeddings are versatile**: Sentence embeddings can power multiple approaches (supervised, zero-shot, similarity-based)
+</Note>
+
+## Next Steps
+
+In Chapter 5, we'll explore **Text Clustering and Topic Modeling**, where you'll learn to discover patterns and topics in unlabeled text collections.
+
+---
+
+**Try the notebook yourself**: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter04/Chapter%204%20-%20Text%20Classification.ipynb)

@@ -1,0 +1,419 @@
+---
+title: "Chapter 2: Tokens and Token Embeddings"
+description: "Exploring tokens and embeddings as an integral part of building and understanding LLMs"
+---
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/HandsOnLLM/Hands-On-Large-Language-Models/blob/main/chapter02/Chapter%202%20-%20Tokens%20and%20Token%20Embeddings.ipynb)
+
+## Overview
+
+Tokenization is the critical first step in how LLMs process text. This chapter explores how different models break down text into tokens, compares tokenization strategies across popular models, and explains how tokens are converted into numerical embeddings that neural networks can process.
+
+<Note>
+We recommend using a GPU for running the examples in this chapter. In Google Colab, go to **Runtime > Change runtime type > Hardware accelerator > GPU > GPU type > T4**.
+</Note>
+
+## Learning Objectives
+
+By the end of this chapter, you will:
+
+- Understand what tokens are and why they matter
+- Compare different tokenization strategies across models
+- Learn how to inspect and visualize tokenization
+- Understand the relationship between tokens and embeddings
+- Recognize common tokenization patterns and edge cases
+
+## Setting Up
+
+First, install the required dependencies:
+
+```bash
+pip install --upgrade transformers==4.41.2 sentence-transformers==3.0.1 \
+    gensim==4.3.2 scikit-learn==1.5.0 accelerate==0.31.0 \
+    peft==0.11.1 scipy==1.10.1 numpy==1.26.4
+```
+
+## Understanding Tokenization
+
+Before an LLM can process text, it must convert words and characters into numbers. This process is called **tokenization**.
+
+### Loading a Model and Tokenizer
+
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+# Load model and tokenizer
+model = AutoModelForCausalLM.from_pretrained(
+    "microsoft/Phi-3-mini-4k-instruct",
+    device_map="cuda",
+    torch_dtype="auto",
+    trust_remote_code=False,
+)
+tokenizer = AutoTokenizer.from_pretrained("microsoft/Phi-3-mini-4k-instruct")
+```
+
+### Tokenizing Text
+
+Let's see how text gets tokenized:
+
+```python
+prompt = "Write an email apologizing to Sarah for the tragic gardening mishap. Explain how it happened.<|assistant|>"
+
+# Tokenize the input prompt
+input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to("cuda")
+
+# Print the token IDs
+print(input_ids)
+```
+
+**Output:**
+```
+tensor([[    1, 14350,   385,  4876, 27746,  5281,   304, 19235,   363,   278,
+         25305,   293, 16423,   292,   286,   728,   481, 29889, 12027,  7420,
+           920,   372,  9559, 29889, 32001]], device='cuda:0')
+```
+
+<Tip>
+Each number in the tensor represents a token. The model's vocabulary maps these IDs to pieces of text (words, subwords, or characters).
+</Tip>
+
+### Decoding Individual Tokens
+
+Let's see what each token represents:
+
+```python
+for id in input_ids[0]:
+   print(tokenizer.decode(id))
+```
+
+**Output:**
+```
+<s>
+Write
+an
+email
+apolog
+izing
+to
+Sarah
+for
+the
+trag
+ic
+garden
+ing
+m
+ish
+ap
+.
+Exp
+lain
+how
+it
+happened
+.
+<|assistant|>
+```
+
+Notice how words are split into subwords! "apologizing" becomes "apolog" + "izing", and "mishap" becomes "m" + "ish" + "ap".
+
+## Comparing Tokenizers Across Models
+
+Different models use different tokenization strategies. Let's create a visualization tool to compare them:
+
+```python
+from transformers import AutoTokenizer
+
+colors_list = [
+    '102;194;165', '252;141;98', '141;160;203',
+    '231;138;195', '166;216;84', '255;217;47'
+]
+
+def show_tokens(sentence, tokenizer_name):
+    tokenizer = AutoTokenizer.from_pretrained(tokenizer_name)
+    token_ids = tokenizer(sentence).input_ids
+    for idx, t in enumerate(token_ids):
+        print(
+            f'\x1b[0;30;48;2;{colors_list[idx % len(colors_list)]}m' +
+            tokenizer.decode(t) +
+            '\x1b[0m',
+            end=' '
+        )
+```
+
+### Test Text with Edge Cases
+
+Let's create a challenging test string that includes various edge cases:
+
+```python
+text = """
+English and CAPITALIZATION
+🎵 鸟
+show_tokens False None elif == >= else: two tabs:"    " Three tabs: "       "
+12.0*50=600
+"""
+```
+
+This test includes:
+- Normal English words
+- All-caps text
+- Emojis and Unicode characters
+- Python keywords and operators
+- Numbers and arithmetic
+- Whitespace variations
+
+### BERT (Uncased)
+
+```python
+show_tokens(text, "bert-base-uncased")
+```
+
+BERT uses **WordPiece** tokenization with a vocabulary of ~30,000 tokens. Notice that:
+- All text is lowercased
+- Unknown tokens (emojis) become `[UNK]`
+- Subwords get a `##` prefix
+
+### BERT (Cased)
+
+```python
+show_tokens(text, "bert-base-cased")
+```
+
+The cased version preserves capitalization, so "CAPITALIZATION" is split differently than the uncased version.
+
+### GPT-2
+
+```python
+show_tokens(text, "gpt2")
+```
+
+GPT-2 uses **Byte Pair Encoding (BPE)** and handles:
+- Spaces as explicit tokens (Ġ represents a space)
+- Better Unicode support
+- More aggressive subword splitting
+
+### GPT-4
+
+```python
+show_tokens(text, "Xenova/gpt-4")
+```
+
+GPT-4's tokenizer is more efficient:
+- Handles whitespace better
+- Smarter about Python code
+- More compact representation overall
+
+### Comparing Token Efficiency
+
+<CardGroup cols={2}>
+  <Card title="BERT Models" icon="b">
+    - Vocabulary: ~30K tokens
+    - Good for: English text classification
+    - Struggles with: Code, emojis, non-English
+  </Card>
+  
+  <Card title="GPT Models" icon="g">
+    - Vocabulary: 50K+ tokens
+    - Good for: Multilingual, code, generation
+    - Better Unicode handling
+  </Card>
+  
+  <Card title="T5 Models" icon="t">
+    - Vocabulary: 32K tokens
+    - SentencePiece tokenization
+    - Good for: Sequence-to-sequence tasks
+  </Card>
+  
+  <Card title="Code Models" icon="code">
+    - Vocabulary: 50K+ tokens
+    - Optimized for programming languages
+    - Better at individual digits and operators
+  </Card>
+</CardGroup>
+
+## Understanding Subword Tokenization
+
+Why do models split words into pieces?
+
+<Steps>
+  <Step title="Vocabulary Size">
+    Instead of needing millions of words, models can use 30K-100K subword tokens
+  </Step>
+  
+  <Step title="Handle Unknown Words">
+    New or rare words can be broken into known subword pieces
+  </Step>
+  
+  <Step title="Shared Roots">
+    Related words share subword tokens: "play", "playing", "played" all share "play"
+  </Step>
+  
+  <Step title="Multilingual Support">
+    The same subwords can work across multiple languages
+  </Step>
+</Steps>
+
+## Token IDs to Text
+
+Let's explore how individual token IDs map to text:
+
+```python
+# Generate some text
+generation_output = model.generate(
+  input_ids=input_ids,
+  max_new_tokens=20
+)
+
+print(tokenizer.decode(generation_output[0]))
+```
+
+**Output:**
+```
+<s> Write an email apologizing to Sarah for the tragic gardening mishap. 
+Explain how it happened.<|assistant|> Subject: My Sincere Apologies for the 
+Gardening Mishap
+
+Dear
+```
+
+### Understanding Special Tokens
+
+```python
+print(tokenizer.decode(3323))   # "Sub"
+print(tokenizer.decode(622))    # "ject"
+print(tokenizer.decode([3323, 622]))  # "Subject"
+print(tokenizer.decode(29901)) # ":"
+```
+
+<Note>
+Some tokens only make sense in combination! Token 3323 is "Sub" and 622 is "ject", but together they form "Subject".
+</Note>
+
+## Tokenization Patterns
+
+### Common Patterns Across Models
+
+<Accordion title="Whitespace Handling">
+Different tokenizers handle spaces differently:
+- BERT: Implicit (no space tokens)
+- GPT-2: Explicit (Ġ prefix)
+- T5: Underscores for spaces
+</Accordion>
+
+<Accordion title="Numbers and Math">
+Models vary in how they tokenize numbers:
+- Some split "12.0" into ["12", ".", "0"]
+- Others keep it as one token
+- Code-focused models are better at preserving mathematical expressions
+</Accordion>
+
+<Accordion title="Programming Keywords">
+Code-optimized tokenizers have dedicated tokens for:
+- Keywords: `False`, `None`, `elif`, `else`
+- Operators: `==`, `>=`, `!=`
+- Common patterns: `def`, `class`, `import`
+</Accordion>
+
+## From Tokens to Embeddings
+
+Once text is tokenized, each token ID is converted to a dense vector (embedding):
+
+```python
+# Get the embedding layer
+embedding_layer = model.model.embed_tokens
+
+# Get embeddings for our input
+embeddings = embedding_layer(input_ids)
+
+print(f"Token IDs shape: {input_ids.shape}")
+print(f"Embeddings shape: {embeddings.shape}")
+```
+
+**Output:**
+```
+Token IDs shape: torch.Size([1, 25])
+Embeddings shape: torch.Size([1, 25, 3072])
+```
+
+Each token becomes a 3072-dimensional vector that captures semantic meaning!
+
+<Tip>
+The embedding dimension (3072 for Phi-3) is a key architectural choice. Larger dimensions can capture more nuanced meanings but require more computation.
+</Tip>
+
+## Practical Implications
+
+### Token Limits
+
+Models have maximum context lengths measured in tokens:
+- **GPT-3.5**: 4,096 tokens
+- **GPT-4**: 8,192 or 32,768 tokens
+- **Phi-3-mini-4k**: 4,096 tokens
+- **Claude 2**: 100,000 tokens
+
+<Warning>
+Always count tokens, not words! A single word might be multiple tokens, especially for:
+- Technical terms
+- Non-English text
+- Rare words
+- Code
+</Warning>
+
+### Cost Considerations
+
+Many API providers charge per token:
+
+```python
+def estimate_cost(text, cost_per_1k_tokens=0.002):
+    tokenizer = AutoTokenizer.from_pretrained("gpt2")
+    num_tokens = len(tokenizer.encode(text))
+    cost = (num_tokens / 1000) * cost_per_1k_tokens
+    return num_tokens, cost
+
+text = "Your long document here..."
+tokens, cost = estimate_cost(text)
+print(f"Tokens: {tokens}, Estimated cost: ${cost:.4f}")
+```
+
+## Visualizing Tokenization
+
+Here's a comparison of how different tokenizers handle the same text:
+
+| Model | "CAPITALIZATION" | "show_tokens" | "12.0*50=600" |
+|-------|------------------|---------------|---------------|
+| BERT (uncased) | capital ##ization | show _ token ##s | 12 . 0 * 50 = 600 |
+| BERT (cased) | CA ##PI ##TA ##L ##I ##Z ##AT ##ION | show _ token ##s | 12 . 0 * 50 = 600 |
+| GPT-2 | ĠCAP ITAL IZ ATION | show _t ok ens | 12 . 0 * 50 = 600 |
+| GPT-4 | ĠCAPITAL IZATION | show _tokens | 12 . 0 * 50 = 600 |
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Match Model and Tokenizer" icon="link">
+    Always use the tokenizer designed for your model
+  </Card>
+  
+  <Card title="Test Edge Cases" icon="flask">
+    Verify tokenization for code, numbers, and special characters
+  </Card>
+  
+  <Card title="Monitor Token Usage" icon="chart-line">
+    Track tokens for cost and context limit management
+  </Card>
+  
+  <Card title="Consider Language" icon="globe">
+    Some tokenizers are more efficient for certain languages
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<Card title="Chapter 3: Looking Inside Transformer LLMs" icon="microscope" href="/chapters/chapter-03-inside-llms">
+  Explore the internal architecture of transformer models and how they process token embeddings
+</Card>
+
+## Additional Resources
+
+- [Hugging Face Tokenizers Guide](https://huggingface.co/docs/transformers/main/en/tokenizer_summary)
+- [BPE Tokenization Explained](https://huggingface.co/learn/nlp-course/chapter6/5)
+- [OpenAI Tokenizer Tool](https://platform.openai.com/tokenizer)

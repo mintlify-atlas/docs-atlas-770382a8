@@ -1,0 +1,427 @@
+---
+title: 'Visual Guide to LLM Agents'
+description: 'Learn how LLMs become autonomous agents that can plan, use tools, and accomplish complex tasks'
+---
+
+## Overview
+
+LLM Agents represent the evolution from language models that generate text to autonomous systems that can perceive, reason, plan, and take actions in the world. By combining LLMs with tool use, memory, planning capabilities, and feedback loops, agents can accomplish complex multi-step tasks that require sustained reasoning and interaction with external systems.
+
+<Note>
+This guide is part of the bonus material for **Hands-On Large Language Models**. It explores how the foundational models covered in the book can be transformed into autonomous agents.
+</Note>
+
+## What Makes an Agent?
+
+Traditional LLMs:
+```
+User Input → LLM → Text Output
+```
+
+LLM Agents:
+```
+Task Goal → [Planning] → [Action Selection] → [Tool Use] → [Observation] → [Reasoning] → ...
+              ↓            ↓                    ↓             ↓             ↓
+           Memory      Environment        Tools/APIs      Feedback      Next Action
+```
+
+The key differences:
+- **Autonomy**: Agents decide on actions without per-step human guidance
+- **Tool use**: Can interact with external systems and APIs
+- **Memory**: Maintain context across multiple interactions
+- **Planning**: Break down complex goals into actionable steps
+- **Iteration**: Learn from feedback and adjust approach
+
+## Why Agents Matter
+
+Agents unlock new capabilities and applications:
+
+- **Task Automation**: Complete multi-step workflows autonomously
+- **Tool Integration**: Seamlessly use calculators, databases, APIs, and more
+- **Complex Problem Solving**: Handle tasks requiring planning and iteration
+- **Real-World Interaction**: Interface with software, web services, and systems
+- **Continuous Improvement**: Learn from experience and feedback
+
+## What You'll Learn
+
+The visual guide explains LLM agents through detailed illustrations:
+
+<CardGroup cols={2}>
+  <Card title="Agent Architectures" icon="sitemap">
+    ReAct, ReWOO, AutoGPT, and other agent frameworks and design patterns
+  </Card>
+  
+  <Card title="Tool Use" icon="wrench">
+    How agents discover, select, and execute tools to accomplish tasks
+  </Card>
+  
+  <Card title="Planning Strategies" icon="chess">
+    Different approaches to breaking down goals and sequencing actions
+  </Card>
+  
+  <Card title="Memory Systems" icon="database">
+    Short-term and long-term memory for maintaining context and learning
+  </Card>
+</CardGroup>
+
+## Visual Guide
+
+<Card 
+  title="A Visual Guide to LLM Agents" 
+  icon="arrow-up-right-from-square"
+  href="https://newsletter.maartengrootendorst.com/p/a-visual-guide-to-llm-agents"
+>
+  Read the full visual guide with detailed diagrams showing how LLM agents work, from basic tool use to complex multi-agent systems.
+</Card>
+
+## Related Book Chapters
+
+Agent systems build on multiple concepts from the book:
+
+- **Chapter 5: Text Generation** - Core LLM capabilities used by agents
+- **Chapter 6: Prompt Engineering** - Prompting strategies for agent behavior
+- **Chapter 7: Advanced Text Generation** - Techniques for reliable agent outputs
+- **Chapter 9: Deploying LLMs** - Infrastructure for agent systems
+
+## Core Components
+
+### 1. The Agent Loop
+
+The fundamental pattern of agent execution:
+
+```
+1. Observe: Get current state and feedback
+2. Think: Reason about situation and goal
+3. Plan: Decide on next action
+4. Act: Execute action using tools
+5. Repeat: Continue until goal achieved
+```
+
+This loop enables:
+- Adaptive behavior based on feedback
+- Error recovery and replanning
+- Multi-step task completion
+
+### 2. Tool Use (Function Calling)
+
+Agents extend LLM capabilities through tools:
+
+**Types of Tools**
+- **Information retrieval**: Search engines, databases, APIs
+- **Computation**: Calculators, code execution, data analysis
+- **Communication**: Email, messaging, notifications
+- **Actions**: File operations, API calls, system commands
+
+**Tool Selection Process**
+1. Agent receives task
+2. Identifies relevant tools from available set
+3. Constructs appropriate tool call with parameters
+4. Executes tool and receives result
+5. Incorporates result into reasoning
+
+### 3. Memory Systems
+
+**Short-term Memory**
+- Current conversation context
+- Recent actions and observations
+- Active goal and sub-goals
+- Working information
+
+**Long-term Memory**
+- Past experiences and outcomes
+- Learned strategies and patterns
+- User preferences and history
+- Domain knowledge
+
+**Memory Techniques**
+- Vector databases for semantic retrieval
+- Summarization for context compression
+- Hierarchical organization
+- Relevance-based retrieval
+
+### 4. Planning
+
+**Approaches to Planning**
+
+**Single-path Planning**
+- Linear sequence of steps
+- Fast and efficient
+- Works for straightforward tasks
+
+**Tree Search**
+- Explore multiple possible paths
+- Backtrack from failures
+- More robust but slower
+
+**Hierarchical Planning**
+- Break into sub-goals
+- Plan at multiple levels of abstraction
+- Handle complex tasks
+
+**Reactive Planning**
+- Minimal upfront planning
+- React to situations as they arise
+- More flexible but potentially inefficient
+
+## Agent Architectures
+
+### ReAct (Reasoning + Acting)
+
+Interleaves reasoning and action:
+```
+Thought: I need to find the population of Tokyo
+Action: search("Tokyo population")
+Observation: 13.96 million (2021)
+Thought: Now I need to compare with New York
+Action: search("New York City population")
+Observation: 8.34 million (2021)
+Thought: Tokyo is larger. I can now answer.
+Answer: Tokyo has a larger population than New York City.
+```
+
+**Benefits**
+- Explicit reasoning traces
+- Clear decision-making process
+- Easy to debug and understand
+
+### AutoGPT Pattern
+
+Fully autonomous goal-directed agent:
+- Receives high-level goal
+- Breaks into sub-tasks automatically
+- Executes and monitors progress
+- Self-corrects and adapts
+
+**Characteristics**
+- Minimal human intervention
+- Persistent execution
+- Goal-driven behavior
+
+### BabyAGI Pattern
+
+Task management focused:
+- Creates and prioritizes task lists
+- Executes tasks sequentially
+- Creates new tasks based on results
+- Maintains task context
+
+### LangChain Agents
+
+Framework-based approach:
+- Pre-built agent types
+- Tool ecosystem
+- Memory management
+- Easy customization
+
+<Info>
+The most effective agents combine multiple patterns - using ReAct for transparency, hierarchical planning for complex tasks, and memory systems for learning and adaptation.
+</Info>
+
+## Tool Integration
+
+### Function Calling
+
+Modern LLMs support structured function calling:
+
+```json
+{
+  "name": "search_web",
+  "parameters": {
+    "query": "latest AI research papers",
+    "num_results": 5
+  }
+}
+```
+
+**Advantages**
+- Structured and reliable
+- Type-safe parameters
+- Clear tool capabilities
+- Easy to extend
+
+### Tool Discovery
+
+Agents must know what tools are available:
+- **Static declaration**: Tools defined upfront
+- **Dynamic discovery**: Query tool registries
+- **Learning**: Discover through experience
+
+### Tool Composition
+
+Combining multiple tools for complex tasks:
+- Sequential: Output of one tool feeds to next
+- Parallel: Execute multiple tools simultaneously
+- Conditional: Choose tools based on conditions
+
+## Advanced Capabilities
+
+### Multi-Agent Systems
+
+Multiple agents working together:
+- **Specialized agents**: Each handles specific tasks
+- **Coordination**: Agents communicate and synchronize
+- **Emergent behavior**: Complex outcomes from simple agents
+- **Robustness**: System continues if one agent fails
+
+### Self-Improvement
+
+Agents that learn and improve:
+- **Experience replay**: Learn from past interactions
+- **Strategy optimization**: Refine approaches based on outcomes
+- **Tool learning**: Discover new tool combinations
+- **Preference learning**: Adapt to user feedback
+
+### Human-in-the-Loop
+
+Balancing autonomy with human oversight:
+- **Approval points**: Human confirms critical actions
+- **Feedback integration**: Learn from human corrections
+- **Collaborative decision-making**: Human and agent work together
+- **Safety mechanisms**: Humans can intervene when needed
+
+## Practical Applications
+
+### Software Development
+- Code generation and debugging
+- Automated testing
+- Documentation writing
+- Dependency management
+
+### Research and Analysis
+- Literature review
+- Data analysis workflows
+- Report generation
+- Citation management
+
+### Business Operations
+- Customer support automation
+- Data entry and processing
+- Report generation
+- Workflow automation
+
+### Personal Assistance
+- Email management
+- Schedule coordination
+- Information gathering
+- Task automation
+
+## Implementation Best Practices
+
+### 1. Start Simple
+- Begin with single-step tool use
+- Add complexity gradually
+- Test thoroughly at each stage
+
+### 2. Design for Observability
+- Log all actions and reasoning
+- Make decision process transparent
+- Enable debugging and analysis
+
+### 3. Implement Safety Measures
+- Validate tool outputs
+- Set resource limits
+- Require approval for sensitive actions
+- Implement rollback mechanisms
+
+### 4. Handle Failures Gracefully
+- Expect tool failures
+- Implement retry logic
+- Provide fallback strategies
+- Learn from errors
+
+### 5. Optimize for Cost
+- Cache frequent queries
+- Batch operations when possible
+- Use smaller models for simple decisions
+- Monitor token usage
+
+## Challenges and Limitations
+
+### Current Challenges
+- **Reliability**: Agents can make mistakes or get stuck
+- **Cost**: Multiple LLM calls can be expensive
+- **Latency**: Multi-step reasoning takes time
+- **Safety**: Autonomous actions need careful control
+- **Debugging**: Complex behavior can be hard to trace
+
+### Active Research Areas
+- Improving planning efficiency
+- Better error recovery mechanisms
+- Formal verification of agent behavior
+- Multi-agent coordination
+- Learning from human feedback
+
+## Tools and Frameworks
+
+### LangChain
+- Comprehensive agent framework
+- Large tool ecosystem
+- Memory management
+- Active community
+
+### AutoGPT
+- Autonomous task execution
+- Goal-driven architecture
+- Plugin system
+- Web UI
+
+### BabyAGI
+- Task-driven autonomous agent
+- Simple and hackable
+- Focused on task management
+
+### Microsoft Semantic Kernel
+- Enterprise-focused framework
+- .NET and Python support
+- Plugin architecture
+- Integration with Microsoft services
+
+### Haystack
+- Focus on retrieval-augmented agents
+- Strong NLP pipeline
+- Production-ready
+- Flexible architecture
+
+## Additional Resources
+
+- [ReAct Paper](https://arxiv.org/abs/2210.03629) - Reasoning and Acting in LLMs
+- [Toolformer](https://arxiv.org/abs/2302.04761) - Teaching LMs to use tools
+- [AutoGPT Repository](https://github.com/Significant-Gravitas/AutoGPT) - Popular agent implementation
+- [LangChain Docs](https://python.langchain.com/docs/modules/agents/) - Agent frameworks
+- [HuggingGPT](https://arxiv.org/abs/2303.17580) - LLM as controller
+
+## The Future of Agents
+
+Agent technology is rapidly evolving:
+
+**Near-term**
+- More reliable tool use
+- Better planning algorithms
+- Improved error recovery
+- Multi-modal agents (vision + language)
+
+**Medium-term**
+- Multi-agent collaboration
+- Learning from experience
+- Formal verification
+- Domain-specific agents
+
+**Long-term**
+- General-purpose autonomous assistants
+- Self-improving systems
+- Complex real-world task completion
+- Human-AI collaborative workflows
+
+<CardGroup cols={2}>
+  <Card title="Reasoning LLMs" href="/advanced/reasoning-llms">
+    The reasoning capabilities that enable agent planning
+  </Card>
+  
+  <Card title="DeepSeek-R1" href="/advanced/deepseek-r1">
+    A powerful reasoning model for agent systems
+  </Card>
+</CardGroup>
+
+## Conclusion
+
+LLM Agents represent a paradigm shift from static text generation to dynamic, goal-directed systems that can autonomously accomplish complex tasks. By combining language understanding with tool use, planning, and memory, agents extend the utility of LLMs far beyond their original design. As the technology matures, agents will become increasingly capable, reliable, and integrated into our workflows and applications.

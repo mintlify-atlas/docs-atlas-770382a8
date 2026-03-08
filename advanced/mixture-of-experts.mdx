@@ -1,0 +1,198 @@
+---
+title: 'Visual Guide to Mixture of Experts'
+description: 'Understand how MoE architectures enable efficient scaling to trillion-parameter models'
+---
+
+## Overview
+
+Mixture of Experts (MoE) represents a breakthrough in scaling language models efficiently. Instead of activating all parameters for every input, MoE models route each token to a subset of specialized "expert" networks. This sparse activation pattern allows models to have trillions of parameters while using only a fraction during inference, dramatically improving efficiency.
+
+<Note>
+This guide is part of the bonus material for **Hands-On Large Language Models**. It explores advanced architectures that push beyond the dense models covered in the book.
+</Note>
+
+## Why Mixture of Experts Matters
+
+MoE architectures have enabled some of the most powerful language models to date:
+
+- **Efficient Scaling**: Grow model capacity without proportional compute increases
+- **Sparse Activation**: Use only 10-20% of parameters per token
+- **Specialization**: Different experts learn to handle different types of inputs
+- **Cost-Effective**: Train and run massive models with manageable resources
+
+Modern MoE models include **GPT-4** (rumored), **Mixtral 8x7B**, **Gemini**, and **DeepSeek-V2**.
+
+## The Core Idea
+
+Traditional dense models process each token through all parameters:
+```
+Input → Layer 1 (all params) → Layer 2 (all params) → ... → Output
+```
+
+MoE models route tokens to specialized experts:
+```
+Input → Router → Expert 1 OR Expert 2 OR ... Expert N → Output
+               ↓
+        (only 1-2 experts active per token)
+```
+
+This sparse computation is the key to MoE's efficiency.
+
+## What You'll Learn
+
+The visual guide explains MoE through detailed illustrations:
+
+<CardGroup cols={2}>
+  <Card title="Architecture Basics" icon="diagram-project">
+    Router networks, expert layers, and how tokens are distributed across experts
+  </Card>
+  
+  <Card title="Training Challenges" icon="triangle-exclamation">
+    Load balancing, expert collapse, and techniques to train MoE models effectively
+  </Card>
+  
+  <Card title="Routing Strategies" icon="route">
+    Top-k routing, learned routing, switch routing, and other selection mechanisms
+  </Card>
+  
+  <Card title="Real-World Systems" icon="server">
+    How production MoE models like Mixtral and GPT-4 are architected and deployed
+  </Card>
+</CardGroup>
+
+## Visual Guide
+
+<Card 
+  title="A Visual Guide to Mixture of Experts (MoE)" 
+  icon="arrow-up-right-from-square"
+  href="https://newsletter.maartengrootendorst.com/p/a-visual-guide-to-mixture-of-experts"
+>
+  Read the full visual guide with detailed diagrams showing how MoE models work from basic principles to advanced implementations.
+</Card>
+
+## Related Book Chapters
+
+MoE builds on fundamental concepts covered in the book:
+
+- **Chapter 3: Looking Inside LLMs** - Understanding Transformer architecture components
+- **Chapter 4: Text Classification** - How different task types benefit from specialization
+- **Chapter 8: Customizing LLMs** - Advanced architectures and optimization techniques
+- **Chapter 9: Deploying LLMs** - Deployment considerations for large models
+
+## Key Concepts Covered
+
+### Core Components
+
+**Router Network**
+- Learns to route tokens to appropriate experts
+- Typically a simple learned linear layer with softmax
+- Produces routing weights for each expert
+
+**Expert Networks**
+- Specialized feedforward networks (typically)
+- Can be entire Transformer blocks in some architectures
+- Each expert develops different specializations
+
+**Combining Mechanism**
+- How outputs from multiple experts are merged
+- Weighted combination based on router scores
+- Strategies for handling expert disagreement
+
+### Training Challenges
+
+**Load Balancing**
+- Preventing all tokens from routing to the same experts
+- Auxiliary loss functions to encourage balanced usage
+- Capacity constraints and overflow handling
+
+**Expert Collapse**
+- When experts become redundant or unused
+- Techniques to maintain expert diversity
+- Initialization strategies
+
+**Communication Overhead**
+- Distributing experts across devices
+- All-to-all communication patterns
+- Optimizing for different hardware configurations
+
+## MoE Architectures
+
+### Switch Transformer
+- Routes each token to a single expert (top-1 routing)
+- Simplifies training and improves efficiency
+- Introduced capacity factor concept
+
+### GLaM and GShard
+- Top-2 routing: each token goes to two experts
+- Better quality through expert ensemble
+- Used in production Google models
+
+### Mixtral 8x7B
+- 8 experts, 2 active per token
+- 47B total parameters, 13B active per token
+- Matches or exceeds GPT-3.5 performance
+- Open-source and highly influential
+
+### DeepSeek-V2
+- Fine-grained experts with novel routing
+- Achieves excellent performance/cost ratio
+- Demonstrates MoE viability for open models
+
+<Info>
+MoE models can have 5-10x more parameters than dense models while requiring similar compute for inference, making them extremely cost-effective at scale.
+</Info>
+
+## Practical Considerations
+
+### Advantages
+- **Computational efficiency**: More capacity without proportional cost
+- **Faster training**: Same compute trains a much larger model
+- **Faster inference**: Only activate needed experts
+- **Specialization**: Experts become specialized for different domains
+
+### Challenges
+- **Memory requirements**: All experts must fit in GPU memory
+- **Communication costs**: Distributed training requires efficient expert placement
+- **Complexity**: More hyperparameters and training instabilities
+- **Serving**: Requires careful infrastructure design
+
+### When to Use MoE
+- Large-scale models where compute is limiting factor
+- Multi-domain or multi-task scenarios
+- When serving latency is critical
+- When you can amortize infrastructure complexity
+
+## Implementation Tips
+
+1. **Start with proven architectures**: Use Mixtral or Switch Transformer patterns
+2. **Monitor expert utilization**: Track which experts are being used
+3. **Tune auxiliary loss carefully**: Balance quality and expert usage
+4. **Consider hardware constraints**: Expert placement affects performance
+5. **Use expert parallelism**: Distribute experts across devices efficiently
+
+## Additional Resources
+
+- [Mixtral 8x7B](https://mistral.ai/news/mixtral-of-experts/) - Mistral AI's open MoE model
+- [Switch Transformers](https://arxiv.org/abs/2101.03961) - Google's landmark paper
+- [DeepSeek-V2](https://arxiv.org/abs/2405.04434) - Efficient MoE architecture
+- [GLaM](https://arxiv.org/abs/2112.06905) - Google's trillion-parameter model
+- [Tutel](https://github.com/microsoft/tutel) - Microsoft's MoE optimization library
+
+## The Future of MoE
+
+Mixture of Experts is increasingly becoming the architecture of choice for frontier models:
+
+- **GPT-4** is widely believed to use MoE
+- **Gemini** uses MoE for efficient scaling
+- Most new open-source large models adopt MoE
+- Research continues on routing strategies and expert design
+
+<CardGroup cols={2}>
+  <Card title="Quantization" href="/advanced/quantization">
+    Combine MoE with quantization for maximum efficiency
+  </Card>
+  
+  <Card title="Reasoning LLMs" href="/advanced/reasoning-llms">
+    How reasoning models leverage model capacity
+  </Card>
+</CardGroup>
