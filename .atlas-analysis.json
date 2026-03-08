@@ -1,0 +1,131 @@
+{
+  "projectType": "ai-ml",
+  "projectName": "Hands-On Large Language Models",
+  "projectDescription": "Official code repository for the O'Reilly book featuring practical tutorials and visual guides for understanding and building with Large Language Models.",
+  "theme": "mint",
+  "primaryColor": "#db3939",
+  "lightColor": "#efacac",
+  "darkColor": null,
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "setup",
+              "prerequisites"
+            ]
+          },
+          {
+            "group": "Foundations",
+            "pages": [
+              "chapters/chapter-01-introduction",
+              "chapters/chapter-02-tokens-embeddings",
+              "chapters/chapter-03-inside-llms"
+            ]
+          },
+          {
+            "group": "Text Understanding",
+            "pages": [
+              "chapters/chapter-04-text-classification",
+              "chapters/chapter-05-clustering-topics"
+            ]
+          },
+          {
+            "group": "Text Generation",
+            "pages": [
+              "chapters/chapter-06-prompt-engineering",
+              "chapters/chapter-07-advanced-generation"
+            ]
+          },
+          {
+            "group": "Retrieval & Multimodal",
+            "pages": [
+              "chapters/chapter-08-semantic-search",
+              "chapters/chapter-09-multimodal"
+            ]
+          },
+          {
+            "group": "Fine-Tuning",
+            "pages": [
+              "chapters/chapter-10-embedding-models",
+              "chapters/chapter-11-finetuning-bert",
+              "chapters/chapter-12-finetuning-generation"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Advanced Topics",
+        "groups": [
+          {
+            "group": "Visual Guides",
+            "pages": [
+              "advanced/quantization",
+              "advanced/mamba",
+              "advanced/mixture-of-experts",
+              "advanced/reasoning-llms",
+              "advanced/deepseek-r1",
+              "advanced/agents"
+            ]
+          },
+          {
+            "group": "Additional Content",
+            "pages": [
+              "advanced/stable-diffusion",
+              "advanced/deeplearning-ai-course"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Community",
+            "pages": [
+              "resources/about-authors",
+              "resources/citation",
+              "resources/contributing"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "12 comprehensive chapters with Jupyter notebooks covering LLM fundamentals to advanced fine-tuning",
+    "Visual and illustrative teaching style with nearly 300 custom figures",
+    "Hands-on code examples using PyTorch, Transformers, and sentence-transformers",
+    "Text classification, clustering, and topic modeling techniques",
+    "Prompt engineering and advanced text generation strategies",
+    "Semantic search and Retrieval-Augmented Generation (RAG)",
+    "Multimodal Large Language Models",
+    "Creating custom text embedding models",
+    "Fine-tuning BERT and generation models",
+    "Bonus visual guides on quantization, Mamba, Mixture of Experts, reasoning LLMs, and agents"
+  ],
+  "publicApiSurface": [
+    "Chapter 1: Introduction to Language Models",
+    "Chapter 2: Tokens and Token Embeddings",
+    "Chapter 3: Looking Inside Transformer LLMs",
+    "Chapter 4: Text Classification",
+    "Chapter 5: Text Clustering and Topic Modeling",
+    "Chapter 6: Prompt Engineering",
+    "Chapter 7: Advanced Text Generation Techniques and Tools",
+    "Chapter 8: Semantic Search and RAG",
+    "Chapter 9: Multimodal Large Language Models",
+    "Chapter 10: Creating Text Embedding Models",
+    "Chapter 11: Fine-Tuning BERT for Classification",
+    "Chapter 12: Fine-Tuning Generation Models",
+    "Visual Guide to Quantization",
+    "Visual Guide to Mamba and State Space Models",
+    "Visual Guide to Mixture of Experts",
+    "Visual Guide to Reasoning LLMs",
+    "Illustrated DeepSeek-R1",
+    "Visual Guide to LLM Agents"
+  ]
+}
