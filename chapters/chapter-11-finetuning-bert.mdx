@@ -37,9 +37,11 @@ train_data, test_data = tomatoes["train"], tomatoes["test"]
 ```
 
 **Dataset statistics:**
-- Training examples: 8,530
-- Test examples: 1,066
-- Labels: 0 (negative), 1 (positive)
+```text
+Training examples: 8,530
+Test examples: 1,066
+Labels: 0 (negative), 1 (positive)
+```
 
 ### Model and Tokenizer Setup
 
@@ -134,7 +136,7 @@ trainer.evaluate()
 </CodeGroup>
 
 **Training results (full fine-tuning):**
-```python
+```text
 {
   'train_runtime': 61.67,
   'train_loss': 0.418,
@@ -143,7 +145,7 @@ trainer.evaluate()
 ```
 
 **Evaluation results:**
-```python
+```text
 {
   'eval_loss': 0.371,
   'eval_f1': 0.857,
@@ -182,7 +184,7 @@ for name, param in model.named_parameters():
 ```
 
 **Results (frozen layers):**
-```python
+```text
 {
   'train_runtime': 15.23,
   'train_loss': 0.696,
@@ -213,7 +215,7 @@ for index, (name, param) in enumerate(model.named_parameters()):
 ```
 
 **Results (partial freezing):**
-```python
+```text
 {
   'train_runtime': 21.0,
   'train_loss': 0.475,
@@ -292,7 +294,7 @@ BERT models overfit quickly. Recommendations:
 
 Typical training loss over 1 epoch (534 steps):
 
-```
+```text
 Step 100: 0.697
 Step 200: 0.424
 Step 300: 0.400

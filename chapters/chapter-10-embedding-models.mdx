@@ -99,8 +99,10 @@ train_loss = losses.CosineSimilarityLoss(model=embedding_model)
 ```
 
 **Training results:**
-- Training loss progression: 0.232 → 0.169 → 0.142
-- Spearman correlation: **0.73**
+```text
+Training loss progression: 0.232 → 0.169 → 0.142
+Spearman correlation: 0.73
+```
 
 #### Multiple Negatives Ranking Loss
 
@@ -130,8 +132,10 @@ train_loss = losses.MultipleNegativesRankingLoss(model=embedding_model)
 ```
 
 **Training results:**
-- Training loss progression: 0.345 → 0.105 → 0.069
-- Spearman correlation: **0.82** (best performance)
+```text
+Training loss progression: 0.345 → 0.105 → 0.069
+Spearman correlation: 0.82 (best performance)
+```
 
 ### Training Configuration
 
@@ -205,9 +209,11 @@ trainer.train()
 ```
 
 **Fine-tuning results:**
-- Original model: Spearman 0.867
-- Fine-tuned model: Spearman 0.848
-- Training improved task-specific performance
+```text
+Original model: Spearman 0.867
+Fine-tuned model: Spearman 0.848
+Training improved task-specific performance
+```
 
 ## Evaluation with MTEB
 

@@ -58,7 +58,7 @@ dataset = dataset.map(format_prompt)
 ```
 
 **Formatted example:**
-```
+```text
 <|user|>
 Given the text: Knock, knock. Who's there? Hike.
 Can you continue the joke based on the given text material?</s>
@@ -176,7 +176,7 @@ trainer.model.save_pretrained("TinyLlama-1.1B-qlora")
 ```
 
 **Training progress (375 steps):**
-```
+```text
 Step   Loss
   10   1.671
   50   1.478
@@ -190,7 +190,7 @@ Step   Loss
 ```
 
 **Training metrics:**
-```python
+```text
 {
   'train_runtime': 765.0,
   'train_samples_per_second': 93.3,
@@ -234,8 +234,10 @@ dpo_dataset = dpo_dataset.map(format_prompt)
 ```
 
 **Dataset statistics:**
-- Filtered examples: 5,922
-- Format: prompt, chosen response, rejected response
+```text
+Filtered examples: 5,922
+Format: prompt, chosen response, rejected response
+```
 
 ### Load SFT Model
 
@@ -292,7 +294,7 @@ dpo_trainer.model.save_pretrained("TinyLlama-1.1B-dpo-qlora")
 ```
 
 **DPO training progress (200 steps):**
-```
+```text
 Step   Loss
   10   0.692
   40   0.606
@@ -346,7 +348,7 @@ print(output)
 ```
 
 **Sample output:**
-```
+```text
 Large Language Models (LLMs) are a type of artificial intelligence 
 that can generate human-like language. They are trained on large amounts 
 of data, including text, audio, and video, and are capable of generating 
@@ -494,12 +496,16 @@ attn_implementation="flash_attention_2"  # If available
 ## Training Time Estimates
 
 **SFT (3,000 examples on T4):**
-- With QLoRA: ~13 minutes
-- Full fine-tuning: ~45 minutes
+```text
+With QLoRA: ~13 minutes
+Full fine-tuning: ~45 minutes
+```
 
 **DPO (5,922 examples on T4):**
-- With QLoRA: ~13 minutes  
-- Full fine-tuning: ~40 minutes
+```text
+With QLoRA: ~13 minutes  
+Full fine-tuning: ~40 minutes
+```
 
 ## Next Steps
 

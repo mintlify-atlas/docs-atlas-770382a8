@@ -88,7 +88,12 @@ embeddings = embedding_model.encode(abstracts, show_progress_bar=True)
 
 **Check the dimensions:**
 ```python
-embeddings.shape  # Output: (44949, 384)
+embeddings.shape
+```
+
+**Output:**
+```text
+(44949, 384)
 ```
 
 Each of the 44,949 abstracts is now represented as a **384-dimensional vector**.
@@ -137,7 +142,12 @@ hdbscan_model = HDBSCAN(
 clusters = hdbscan_model.labels_
 
 # How many clusters did we generate?
-len(set(clusters))  # Output: 156
+len(set(clusters))
+```
+
+**Output:**
+```text
+156
 ```
 
 We discovered **156 distinct clusters** in the NLP research literature!
@@ -164,7 +174,7 @@ for index in np.where(clusters==cluster)[0][:3]:
 ```
 
 **Output:**
-```
+```text
 This works aims to design a statistical machine translation from English text
 to American Sign Language (ASL). The system is based on Moses tool with some
 modifications and the results are synthesized through a 3D avatar for
@@ -252,7 +262,7 @@ topic_model = BERTopic(
 ```
 
 **Training output:**
-```
+```text
 2024-04-24 10:38:31 - BERTopic - Dimensionality - Fitting the dimensionality reduction algorithm
 2024-04-24 10:39:22 - BERTopic - Dimensionality - Completed ✓
 2024-04-24 10:39:22 - BERTopic - Cluster - Start clustering the reduced embeddings
@@ -328,7 +338,7 @@ topic_model.find_topics("topic modeling")
 ```
 
 **Output:**
-```python
+```text
 ([22, -1, 1, 47, 32], [0.955, 0.912, 0.907, 0.907, 0.905])
 ```
 
@@ -360,7 +370,11 @@ This topic includes classic topic modeling terms like LDA (Latent Dirichlet Allo
 
 ```python
 topic_model.topics_[titles.index('BERTopic: Neural topic modeling with a class-based TF-IDF procedure')]
-# Output: 22
+```
+
+**Output:**
+```text
+22
 ```
 
 Perfect! The BERTopic paper itself was correctly assigned to the topic modeling topic.

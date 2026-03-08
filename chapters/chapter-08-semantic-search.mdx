@@ -56,7 +56,12 @@ response = co.embed(
 ).embeddings
 
 embeds = np.array(response)
-print(embeds.shape)  # (15, 4096)
+print(embeds.shape)
+```
+
+**Output:**
+```text
+(15, 4096)
 ```
 
 <Note>
@@ -230,8 +235,12 @@ response = co.chat(
 )
 
 print(response.text)
-# Output: "The film generated a worldwide gross of over $677 million, 
-#          or $773 million with subsequent re-releases."
+```
+
+**Output:**
+```text
+"The film generated a worldwide gross of over $677 million, 
+ or $773 million with subsequent re-releases."
 ```
 
 <Note>
@@ -315,9 +324,13 @@ Build a complete RAG pipeline using local models for full control and privacy.
     result = rag.invoke('Income generated')
     
     print(result['result'])
-    # Output: "Interstellar grossed over $677 million worldwide in 2014 
-    #          and had additional earnings from subsequent re-releases, 
-    #          totaling approximately $773 million."
+    ```
+    
+    **Output:**
+    ```text
+    "Interstellar grossed over $677 million worldwide in 2014 
+     and had additional earnings from subsequent re-releases, 
+     totaling approximately $773 million."
     ```
   </Step>
 </Steps>

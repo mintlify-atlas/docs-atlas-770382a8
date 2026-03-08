@@ -68,7 +68,7 @@ print(model)
 ```
 
 **Output:**
-```
+```text
 Phi3ForCausalLM(
   (model): Phi3Model(
     (embed_tokens): Embedding(32064, 3072, padding_idx=32000)
@@ -193,7 +193,7 @@ print(output[0]['generated_text'])
 ```
 
 **Output:**
-```
+```text
 
 Solution 1:
 
@@ -253,7 +253,7 @@ print(next_token)
 ```
 
 **Output:**
-```
+```text
 Paris
 ```
 
@@ -261,7 +261,7 @@ Perfect! The model correctly predicts "Paris" as the next token.
 
 ### Visualization of the Process
 
-```
+```text
 Input: "The capital of France is"
          ↓ (tokenization)
 Token IDs: [1, 450, 7483, 310, 3444, 338]
@@ -366,7 +366,7 @@ Let's count the parameters in Phi-3:
 
 <AccordionGroup>
   <Accordion title="Embedding Layer">
-    ```
+    ```text
     32,064 (vocab) × 3,072 (dim) = 98.4M parameters
     ```
   </Accordion>
@@ -381,19 +381,19 @@ Let's count the parameters in Phi-3:
   </Accordion>
 
   <Accordion title="All 32 Layers">
-    ```
+    ```text
     32 layers × 113M = 3.6B parameters
     ```
   </Accordion>
 
   <Accordion title="LM Head">
-    ```
+    ```text
     3,072 (dim) × 32,064 (vocab) = 98.4M parameters
     ```
   </Accordion>
 
   <Accordion title="Grand Total">
-    ```
+    ```text
     98.4M (embedding) + 3.6B (layers) + 98.4M (lm_head) 
     ≈ 3.8 billion parameters
     ```
